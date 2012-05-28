@@ -224,7 +224,7 @@ func main() {
 	certTree := BuildCertTree(".")
 	if certTree == nil {
 		ca := GenCACert(pkix.Name{CommonName: "TestCA",
-			StreetAddress:      []string{"Calle Acme num. 1"},
+			StreetAddress:      []string{"Acme st. num. 23"},
 			PostalCode:         []string{"12345"},
 			Locality:           []string{"Acme City"},
 			Province:           []string{"Acme County"},
