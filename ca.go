@@ -66,16 +66,22 @@ func copyName(name pkix.Name) pkix.Name {
 }
 
 func genCert(p *CertPair, name pkix.Name, years int) *CertPair {
-	tmpl := &CertPair{}
+	t := &CertPair{}
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
 		log.Fatalf("failed to generate private key: %s", err)
 		return nil
 	}
-	tmpl.key = key
+	t.key = key
 	now := time.Now()
-	tmpl.cert = &x509.Certificate{
-		SerialNumber: new(big.Int).SetInt64(0),
+	serial, err := rand.Int(rand.Reader, new(big.Int).SetInt64(9223372036854775807))
+	if err != nil {
+		log.Fatalf("failed to generate random serial number: %s", err)
+		return nil
+	}
+	log.Println("serial:", serial)
+	t.cert = &x509.Certificate{
+		SerialNumber: serial,
 		Subject:      name,
 		NotBefore:    now.Add(-5 * time.Minute).UTC(),
 		NotAfter:     now.AddDate(years, 0, 0).UTC(), // valid for years
@@ -84,16 +90,18 @@ func genCert(p *CertPair, name pkix.Name, years int) *CertPair {
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 	}
 	if p == nil {
-		tmpl.cert.BasicConstraintsValid = true
-		tmpl.cert.IsCA = true
-		tmpl.cert.MaxPathLen = 0
-		p = tmpl
+		t.cert.BasicConstraintsValid = true
+		t.cert.IsCA = true
+		t.cert.MaxPathLen = 0
+		p = t
+		log.Println("t.key.PublicKey=", t.key.PublicKey)
+		log.Println("p.key=", t.key)
 	}
 
 	certname := name.CommonName + CERT_SUFFIX
 	keyname := name.CommonName + KEY_SUFFIX
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, tmpl.cert, p.cert, &p.key.PublicKey, p.key)
+	derBytes, err := x509.CreateCertificate(rand.Reader, t.cert, p.cert, &t.key.PublicKey, p.key)
 	//log.Println("Generated:", tmpl)
 	if err != nil {
 		log.Fatalf("Failed to create Certificate: %s", err)
@@ -115,10 +123,10 @@ func genCert(p *CertPair, name pkix.Name, years int) *CertPair {
 		return nil
 	}
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(tmpl.key)})
+		Bytes: x509.MarshalPKCS1PrivateKey(t.key)})
 	keyOut.Close()
 	//log.Print("Written " + keyname + "\n")
-	return tmpl
+	return t
 }
 
 func loadCertPair(name string) *CertPair {
@@ -260,7 +268,7 @@ func (cp *CertPair) String() string {
 	if cp.cert.IsCA {
 		prefix = "(CA)"
 	}
-	return "CertPair " + prefix + " " + cp.cert.Subject.CommonName +
+	return prefix + " " + cp.cert.Subject.CommonName +
 		" (" + cp.cert.NotBefore.String() + " - " + cp.cert.NotAfter.String() + ")"
 }
 
@@ -276,14 +284,15 @@ func main() {
 			Organization:       []string{"Acme"},
 			Country:            []string{"AcmeLand"}}, 4)
 		GenCert(ca, "server.acme.com", 2)
+		GenCert(ca, "tys14ubu.rfranco.com", 2)
 		certTree = LoadCertTree(".")
 	}
 	log.Print("CertTree:\n", certTree)
 
-	log.Print("CertTree.first:\n", certTree.first)
+	/*log.Print("CertTree.first:\n", certTree.first)
 	RenewCert(nil, certTree.first.ca)
 	RenewCert(certTree.first.ca, certTree.first.certs[0])
 	certTree = LoadCertTree(".")
-	log.Print("Renewed CertTree:\n", certTree)
+	log.Print("Renewed CertTree:\n", certTree)*/
 }
 
