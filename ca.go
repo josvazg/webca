@@ -75,27 +75,31 @@ func genCert(p *CertPair, name pkix.Name, years int) *CertPair {
 	t.key = key
 	now := time.Now()
 	serial, err := rand.Int(rand.Reader, new(big.Int).SetInt64(9223372036854775807))
+	ski:=[]byte{0,0,0,0}
+	rand.Reader.Read(ski)
 	if err != nil {
 		log.Fatalf("failed to generate random serial number: %s", err)
 		return nil
 	}
 	log.Println("serial:", serial)
+	log.Println("ski:", ski)
 	t.cert = &x509.Certificate{
 		SerialNumber: serial,
 		Subject:      name,
 		NotBefore:    now.Add(-5 * time.Minute).UTC(),
 		NotAfter:     now.AddDate(years, 0, 0).UTC(), // valid for years
 
-		SubjectKeyId: []byte{1, 2, 3, 4},
+		SubjectKeyId: ski,
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 	}
 	if p == nil {
 		t.cert.BasicConstraintsValid = true
 		t.cert.IsCA = true
 		t.cert.MaxPathLen = 0
+		t.cert.KeyUsage = t.cert.KeyUsage | x509.KeyUsageCertSign
 		p = t
-		log.Println("t.key.PublicKey=", t.key.PublicKey)
-		log.Println("p.key=", t.key)
+		//log.Println("t.key.PublicKey=", t.key.PublicKey)
+		//log.Println("p.key=", t.key)
 	}
 
 	certname := name.CommonName + CERT_SUFFIX
