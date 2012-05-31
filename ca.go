@@ -6,7 +6,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	//"fmt"
+	//"errors"
+	"fmt"
 	//"flag"
 	"io/ioutil"
 	"log"
@@ -34,17 +35,17 @@ type CertTree struct {
 	order  []*Cert            // Ordered list of certs
 }
 
-func GenCACert(name pkix.Name, years int) *Cert {
+func GenCACert(name pkix.Name, years int) (*Cert, error) {
 	return genCert(nil, name, years)
 }
 
-func GenCert(parent *Cert, cert string, years int) *Cert {
+func GenCert(parent *Cert, cert string, years int) (*Cert, error) {
 	name := copyName(parent.crt.Subject)
 	name.CommonName = cert
 	return genCert(parent, name, years)
 }
 
-func RenewCert(cert *Cert) *Cert {
+func RenewCert(cert *Cert) (*Cert, error) {
 	years := int((cert.crt.NotAfter.Unix() - cert.crt.NotBefore.Unix()) / SECS_IN_YEAR)
 	return genCert(cert.parent, cert.crt.Subject, years)
 }
@@ -61,20 +62,18 @@ func copyName(name pkix.Name) pkix.Name {
 	}
 }
 
-func genCert(p *Cert, name pkix.Name, years int) *Cert {
+func genCert(p *Cert, name pkix.Name, years int) (*Cert, error) {
 	t := &Cert{}
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
-		log.Fatalf("failed to generate private key: %s", err)
-		return nil
+		return nil, fmt.Errorf("Failed to generate private key: %s", err)
 	}
 	now := time.Now()
 	serial, err := rand.Int(rand.Reader, new(big.Int).SetInt64(9223372036854775807))
 	ski := []byte{0, 0, 0, 0}
 	rand.Reader.Read(ski)
 	if err != nil {
-		log.Fatalf("failed to generate random serial number: %s", err)
-		return nil
+		return nil, fmt.Errorf("Failed to generate random serial number: %s", err)
 	}
 	//log.Println("serial:", serial)
 	//log.Println("ski:", ski)
@@ -106,14 +105,12 @@ func genCert(p *Cert, name pkix.Name, years int) *Cert {
 	derBytes, err := x509.CreateCertificate(rand.Reader, t.crt, p.crt, &t.key.PublicKey, p.key)
 	//log.Println("Generated:", tmpl)
 	if err != nil {
-		log.Fatalf("Failed to create Certificate: %s", err)
-		return nil
+		return nil, fmt.Errorf("Failed to create Certificate: %s", err)
 	}
 
 	certOut, err := os.Create(certname)
 	if err != nil {
-		log.Fatalf("Failed to open "+certname+" for writing: %s", err)
-		return nil
+		return nil, fmt.Errorf("Failed to open "+certname+" for writing: %s", err)
 	}
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOut.Close()
@@ -121,17 +118,16 @@ func genCert(p *Cert, name pkix.Name, years int) *Cert {
 
 	keyOut, err := os.OpenFile(keyname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Print("Failed to open "+keyname+" for writing:", err)
-		return nil
+		return nil, fmt.Errorf("Failed to open "+keyname+" for writing: %s", err)
 	}
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(t.key)})
 	keyOut.Close()
 	//log.Print("Written " + keyname + "\n")
-	return t
+	return t, nil
 }
 
-func loadCert(name string) *Cert {
+func loadCert(name string) (*Cert, error) {
 	cert := Cert{}
 	kname := name
 	if strings.HasSuffix(kname, CERT_SUFFIX) {
@@ -146,51 +142,45 @@ func loadCert(name string) *Cert {
 
 	certIn, err := ioutil.ReadFile(name)
 	if err != nil {
-		log.Fatalf("Failed to open "+name+" for reading: %s", err)
-		return nil
+		return nil, fmt.Errorf("Failed to open "+name+" for reading: %s", err)
 	}
 	b, _ := pem.Decode(certIn)
 	if b == nil {
-		log.Fatalf("Failed to find a certificate in " + name)
-		return nil
+		return nil, fmt.Errorf("Failed to find a certificate in " + name)
 	}
 	cert.crt, err = x509.ParseCertificate(b.Bytes)
 	if err != nil {
-		log.Fatalf("Failed to parse certificate " + name)
-		return nil
+		return nil, fmt.Errorf("Failed to parse certificate " + name)
 	}
 	keyIn, err := ioutil.ReadFile(kname)
 	if err != nil {
-		log.Fatalf("Failed to open "+kname+" for reading: %s", err)
-		return nil
+		return nil, fmt.Errorf("Failed to open "+kname+" for reading: %s", err)
 	}
 	kb, _ := pem.Decode(keyIn)
 	if kb == nil {
-		log.Fatalf("Failed to find a key in " + kname)
-		return nil
+		return nil, fmt.Errorf("Failed to find a key in " + kname)
 	}
 	cert.key, err = x509.ParsePKCS1PrivateKey(kb.Bytes)
 	if err != nil {
-		log.Fatalf("Failed to parse key " + kname)
-		return nil
+		return nil, fmt.Errorf("Failed to parse key " + kname)
 	}
-	return &cert
+	return &cert, nil
 }
 
 func LoadCertTree(dir string) *CertTree {
 	ctree := newCertTree()
 	fi, err := os.Lstat(dir)
 	if err != nil {
-		log.Fatalf("Failed to check path "+dir+":", err)
+		log.Printf("(Warning) Failed to check path "+dir+":", err)
 		return nil
 	}
 	if !fi.IsDir() {
-		log.Fatalf("Path " + dir + " is not a directory!")
+		log.Printf("(Warning) Path " + dir + " is not a directory!")
 		return nil
 	}
 	f, err := os.Open(dir)
 	if err != nil {
-		log.Fatalf("Can't open "+dir+" for reading:", err)
+		log.Printf("(Warning) Can't open "+dir+" for reading:", err)
 		return nil
 	}
 	defer f.Close()
@@ -198,12 +188,16 @@ func LoadCertTree(dir string) *CertTree {
 		for _, fi := range fis {
 			if !fi.IsDir() && strings.HasSuffix(fi.Name(), CERT_SUFFIX) &&
 				!strings.HasSuffix(fi.Name(), KEY_SUFFIX) {
-				ctree.addCert(loadCert(fi.Name()))
+				if crt, err := loadCert(fi.Name()); err == nil {
+					ctree.addCert(crt)
+				} else {
+					log.Printf("(Warning) %s", err)
+				}
 			}
 		}
 	}
 	if err != nil {
-		log.Fatalf("Can't read dir "+dir+":", err)
+		log.Printf("(Warning) Can't read dir "+dir+":", err)
 		return nil
 	}
 	if len(ctree.certs) == 0 {
@@ -281,11 +275,17 @@ func (cert *Cert) String() string {
 		" (" + cert.crt.NotBefore.String() + " - " + cert.crt.NotAfter.String() + ")"
 }
 
+func handleFatal(err error) {
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+}
+
 func main() {
 	certTree := LoadCertTree(".")
 	if certTree == nil {
 		certTree = newCertTree()
-		ca := GenCACert(pkix.Name{CommonName: "TestCA",
+		ca, err := GenCACert(pkix.Name{CommonName: "TestCA",
 			StreetAddress:      []string{"Acme st. num. 23"},
 			PostalCode:         []string{"12345"},
 			Locality:           []string{"Acme City"},
@@ -293,10 +293,15 @@ func main() {
 			OrganizationalUnit: []string{"Acme Labs"},
 			Organization:       []string{"Acme"},
 			Country:            []string{"AcmeLand"}}, 4)
-		certTree.addCert(GenCert(ca, "server.acme.com", 2))
-		certTree.addCert(GenCert(ca, "tys14ubu.rfranco.com", 2))
+		handleFatal(err)
+		certTree.addCert(ca)
+		for _, crtName := range []string{"server.acme.com", "tys14ubu.rfranco.com"} {
+			crt, err := GenCert(ca, crtName, 2)
+			handleFatal(err)
+			certTree.addCert(crt)
+		}
 	}
-	log.Print("CertTree:\n", certTree)
+	log.Print(certTree)
 
 	/*log.Print("CertTree.first:\n", certTree.first)
 	RenewCert(nil, certTree.first.ca)
