@@ -281,6 +281,7 @@ func handleFatal(err error) {
 	}
 }
 
+/*
 func main() {
 	certTree := LoadCertTree(".")
 	if certTree == nil {
@@ -303,10 +304,10 @@ func main() {
 	}
 	log.Print(certTree)
 
-	/*log.Print("CertTree.first:\n", certTree.first)
-	RenewCert(nil, certTree.first.ca)
-	RenewCert(certTree.first.ca, certTree.first.certs[0])
-	certTree = LoadCertTree(".")
-	log.Print("Renewed CertTree:\n", certTree)*/
-}
+	//log.Print("CertTree.first:\n", certTree.first)
+	//RenewCert(nil, certTree.first.ca)
+	//RenewCert(certTree.first.ca, certTree.first.certs[0])
+	//certTree = LoadCertTree(".")
+	//log.Print("Renewed CertTree:\n", certTree)
+}*/
 
