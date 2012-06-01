@@ -1,0 +1,84 @@
+body {
+	font-family: Helvetica, Arial, sans-serif;
+	margin: 0;
+}
+
+h1 {
+	font-size: 36pt;
+	color: #000030;
+}
+
+a {
+	color: #375EAB;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+b {
+	color: #375EAB;
+}
+
+input {
+	border: 1px solid grey;
+}
+
+div.loggedUser {
+	text-align: right;
+	font-size: 10pt;
+}
+
+div.topbar {
+	background-color: #E0EBF5;
+	padding: 0.5em;
+}
+
+div.intro {
+	margin: 2em;
+}
+
+div.footer {
+	font-size: 9pt;
+	margin: 2em;
+}
+
+div.toolbar {
+	background-color: #E0EBF5;
+	padding: 0.25em;
+	margin-top: 1em;
+	margin-bottom: 1em;
+}
+
+div.warn {
+	color: red;
+	font-weight: bold;
+	margin: 2em;
+}
+
+.form {
+	margin: 3em;
+	text-align: center;
+	margin-left: auto;
+    margin-right: auto;
+}
+
+td.main {
+	font-size: 18pt;
+}
+
+input.main {
+	font-size: 16pt;
+}
+
+input {
+	font-size: 12pt;
+}
+
+.submit {
+	text-align: center;
+	margin-left: auto;
+    margin-right: auto;
+}
+

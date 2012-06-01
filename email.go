@@ -64,8 +64,9 @@ func setup() Mailer {
 	return mailer
 }
 
+/*
 func main() {
 	mailer := setup()
 	mailer.sendMail("josvazg+webca@gmail.com", "Test notification", "Notification!")
-}
+}*/
 

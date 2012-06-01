@@ -1,0 +1,36 @@
+{{define "setuphtmlheader"}}
+<html>
+<head>
+<title>WebCA (setup)</title>
+<style type="text/css">
+{{template "style.css"}}
+</style>
+</head>
+<body>
+<div class="topbar">
+<h1>WebCA (setup)</h1>
+</div>
+{{end}}
+
+{{define "htmlheader"}}
+<div class="topbar">
+<h1>WebCA</h1>
+  <div class="loggedUser">
+{{if .User}} Logged as: {{.User.Email}} (<a href="/login">logout</a>)
+{{else}} Not logged in (<a href="/login">login here</a>)
+{{end}}
+  </div>
+</div>
+{{end}}
+
+
+{{define "htmlfooter"}}
+<div class="footer">
+	<a href="http://github.com/josvazg/webca">Hosted on GitHub</a><br/>
+	<a rel="license" href="http://creativecommons.org/licenses/by/3.0/"><img alt="Licencia Creative Commons" style="border-width:0" src="http://i.creativecommons.org/l/by/3.0/88x31.png" /></a><br /><a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.
+</div>
+</body>
+</html>
+{{end}}
+
+
