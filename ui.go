@@ -10,7 +10,7 @@ import (
 )
 
 var templates = template.Must(template.ParseFiles("html/setup.html",
-	"html/templates.html", "html/style.css"))
+	"html/templates.html", "html/style.css", "html/translate_en.html"))
 
 const (
 	WEBCA_FILE   = "webca.pem"

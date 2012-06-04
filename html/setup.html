@@ -1,9 +1,32 @@
 {{template "setuphtmlheader"}}
 
-<div class="intro">
-This is unnacceptable!<p/>
-We cannot run our own Web CA on an unsecure http:// connection like this!<p>
-lets create the certificates right now...
+<h2>{{template "userSetupTitle"}}</h2>
+
+<form action="/userSetup" method="post">
+
+<div class="explanation">
+{{template "setupInfo"}}
 </div>
+
+<table class="form">
+<tr><td class="mainlabel">{{template "username"}}:</td>
+    <td><input type="text" class="main" name="username"></td></tr>
+<tr><td class="label">{{template "fullname"}}:</td>
+    <td><input type="text" name="fullname"></td></tr>
+<tr><td class="label">{{template "password"}}:</td>
+    <td><input type="password" name="password"></td></tr>
+<tr><td class="label">{{template "repeatPasswd"}}:</td>
+    <td><input type="password" name="password2"></td></tr>
+<tr><td class="label">{{template "email"}}:</td>
+    <td><input type="text" name="email"></td></tr>
+<tr><td class="label">{{template "emailserver"}}:</td>
+    <td><input type="text" name="emailserver"></td></tr>
+<tr><td class="label">{{template "emailpasswd"}}:</td>
+    <td><input type="password" name="emailpasswd"></td></tr>
+<tr><td class="label">{{template "repeatEmailpasswd"}}:</td>
+    <td><input type="password" name="emailpasswd2"></td></tr>
+<tr><td colspan="2"><input type="submit" name="submit" value="{{template "save"}}"><td><tr>
+</table>
+</form>
 
 {{template "htmlfooter"}}

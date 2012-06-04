@@ -8,6 +8,12 @@ h1 {
 	color: #000030;
 }
 
+h2 {
+	font-size: 24pt;
+	color: #000030;
+	text-align: center;
+}
+
 a {
 	color: #375EAB;
 	text-decoration: none;
@@ -39,6 +45,12 @@ div.intro {
 	margin: 2em;
 }
 
+div.explanation {
+	margin: 1em;
+	font-size: 10pt;
+	text-align: center;
+}
+
 div.footer {
 	font-size: 9pt;
 	margin: 2em;
@@ -65,6 +77,15 @@ div.warn {
 }
 
 td.main {
+	font-size: 18pt;
+}
+
+td.label {
+	text-align: left;
+}
+
+td.mainlabel {
+	text-align: left;
 	font-size: 18pt;
 }
 
