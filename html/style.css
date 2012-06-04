@@ -76,6 +76,14 @@ div.warn {
     margin-right: auto;
 }
 
+.control {
+	color: blue;
+	font-weight: bold;
+	text-align: center;
+	margin-left: auto;
+    margin-right: auto;
+}
+
 td.main {
 	font-size: 18pt;
 }

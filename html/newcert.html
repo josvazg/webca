@@ -1,0 +1,74 @@
+{{template "setuphtmlheader"}}
+
+<h2>{{template "newcertTitle"}}</h2>
+
+<form action="/newcert" method="post">
+
+<div class="explanation">
+{{template "casetupInfo"}}
+</div>
+
+<table class="form">
+<tr><td class="mainlabel">{{template "cert"}}:</td>
+    <td><input type="text" class="main" name="cert"></td></tr>
+<tr><td colspan="2">
+<div id="toggler" onclick="toggleOps()" class="control">{{template "more"}}...</div>
+<td><tr>
+<tr id="ops"><td class="label">{{template "street"}}:</td>
+    <td><input type="text" name="street"></td></tr>
+<tr id="ops"><td class="label">{{template "postal"}}:</td>
+    <td><input type="text" name="postal"></td></tr>
+<tr id="ops"><td class="label">{{template "locality"}}:</td>
+    <td><input type="text" name="locality"></td></tr>
+<tr id="ops"><td class="label">{{template "province"}}:</td>
+    <td><input type="text" name="province"></td></tr>
+<tr id="ops"><td class="label">{{template "ou"}}:</td>
+    <td><input type="text" name="ou"></td></tr>
+<tr id="ops"><td class="label">{{template "org"}}:</td>
+    <td><input type="text" name="org"></td></tr>
+<tr id="ops"><td class="label">{{template "country"}}:</td>
+    <td><input type="text" name="country"></td></tr>
+<tr><td colspan="2"><input type="submit" name="submit" value="{{template "create"}}"><td><tr>
+</table>
+</form>
+
+<script type="text/javascript">
+	function $(id) {
+		return document.getElementById(id);
+	}
+
+	function toggleOps() {
+		var vis=$('ops').style.visibility;
+		if(vis=='hidden') {
+			on(find('tr','ops'),function (e) {e.style.visibility='';});
+			$('toggler').innerHTML='{{template "hide"}}';
+		} else {
+			on(find('tr','ops'),function (e) {e.style.visibility='hidden';});
+			$('toggler').innerHTML='{{template "more"}}...';
+		}		
+	}
+
+	function find(tag, id) {
+		elems=document.getElementsByTagName(tag);
+		found=new Array();
+		j=0;
+		for(i=0;i<elems.length;i++) {
+			e=elems[i]
+			if(e.id==id) {
+				found[j]=e;
+				j++;
+			}
+		}
+		return found;
+	}
+
+	function on(list,func) {
+		for(i=0;i<list.length;i++) {
+			func(list[i])
+		}
+	}
+
+	toggleOps();
+</script>
+
+{{template "htmlfooter"}}

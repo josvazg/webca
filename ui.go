@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-var templates = template.Must(template.ParseFiles("html/setup.html",
+var templates = template.Must(template.ParseFiles("html/setup.html", "html/newca.html",
+	"html/newcert.html",
 	"html/templates.html", "html/style.css", "html/translate_en.html"))
 
 const (
@@ -46,11 +47,27 @@ func sayhi(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func newca(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "newca.html", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func newcert(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "newcert.html", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func setupHttps() {
 	log.Printf("(Warning) Starting setup, go to http://localhost/...")
 	smux := http.NewServeMux()
 	setupServer := http.Server{Handler: smux}
 	smux.HandleFunc("/", sayhi)
+	smux.HandleFunc("/newca", newca)
+	smux.HandleFunc("/newcert", newcert)
 	err := setupServer.ListenAndServe()
 	if err != nil && !strings.Contains(err.Error(), "perm") {
 		log.Fatalf("Could not start setup!: %s", err)
