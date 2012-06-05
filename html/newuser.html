@@ -1,0 +1,32 @@
+{{template "setuphtmlheader"}}
+
+<h2>{{template "userSetupTitle"}}</h2>
+
+<form action="/userSetup" method="post">
+
+<div class="explanation">
+{{template "setupInfo"}}
+</div>
+
+step={{.Step}}<br/>
+err={{.Error}}<br/>
+
+<input type="hidden" name="Step" value="{{.Step}}"/>
+<table class="form">
+<tr><td class="mainlabel">{{template "username"}}:</td>
+    <td class="mainlabel">
+    <input type="text" class="main" name="Username" value="{{.U.Username}}"></td></tr>
+<tr><td class="label">{{template "fullname"}}:</td>
+    <td class="label">
+    <input type="text" name="Fullname" size="50" value="{{.U.Fullname}}"></td></tr>
+<tr><td class="label">{{template "password"}}:</td>
+    <td class="label"><input type="password" name="Password"></td></tr>
+<tr><td class="label">{{template "repeatPasswd"}}:</td>
+    <td class="label"><input type="password" name="Password2"></td></tr>
+<tr><td class="label">{{template "email"}}:</td>
+    <td class="label"><input type="text" name="Email" value="{{.U.Email}}"></td></tr>
+<tr><td colspan="2"><input type="submit" name="submit" value="{{template "save"}}"><td><tr>
+</table>
+</form>
+
+{{template "htmlfooter"}}

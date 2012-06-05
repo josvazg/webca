@@ -1,46 +1,82 @@
 package main
 
 import (
+	"code.google.com/p/gorilla/context"
 	//"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	"os"
+	"strconv"
 	"strings"
 )
 
-var templates = template.Must(template.ParseFiles("html/setup.html", "html/newca.html",
-	"html/newcert.html",
+var templates = template.Must(template.ParseFiles("html/setup.html", "html/newuser.html",
+	"html/newca.html", "html/newcert.html",
 	"html/templates.html", "html/style.css", "html/translate_en.html"))
 
 const (
-	WEBCA_FILE   = "webca.pem"
-	WEBCA_KEY    = "webca.key.pem"
 	ALTSETUPADDR = ":9090"
 )
 
+type SetupWizard struct {
+	Step int
+	U    User
+	M    Mailer
+}
+
+type PageStatus struct {
+	SetupWizard
+	Error string
+}
+
+func tr(s string) string {
+	return s
+}
+
 // webca starts the setup if there is no HTTPS config or the normal app if it is present
 func webca() {
-	if !hasTLSConfig() {
-		setupHttps()
+	cfg := LoadConfig()
+	if cfg == nil {
+		setup()
 	}
 }
 
-// hasTLSConfig checks whethere there is configuration files for HTTPS or not
-func hasTLSConfig() bool {
-	_, err := os.Stat(WEBCA_FILE)
-	if os.IsNotExist(err) {
-		return false
-	}
-	_, err = os.Stat(WEBCA_KEY)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
+func startSetup(w http.ResponseWriter, r *http.Request) {
+	ps := PageStatus{SetupWizard: SetupWizard{Step: 1}}
+	context.DefaultContext.Set(r, "pageStatus", ps)
+	newuser(w, r)
 }
 
-func sayhi(w http.ResponseWriter, r *http.Request) {
-	//fmt.Fprintf(w, "Hi there!")
+func newuser(w http.ResponseWriter, r *http.Request) {
+	ps := context.DefaultContext.Get(r, "pageStatus")
+	err := templates.ExecuteTemplate(w, "newuser.html", ps)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func userSetup(w http.ResponseWriter, r *http.Request) {
+	ps := PageStatus{}
+	ps.Step, _ = strconv.Atoi(r.FormValue("Step"))
+	ps.U.Username = r.FormValue("Username")
+	ps.U.Fullname = r.FormValue("Fullname")
+	ps.U.Email = r.FormValue("Email")
+	pwd := r.FormValue("Password")
+	pwd2 := r.FormValue("Password2")
+	if pwd == "" || pwd != pwd2 {
+		ps.Error = tr("BadPasswd")
+		context.DefaultContext.Set(r, "pageStatus", ps)
+		newuser(w, r)
+		return
+	}
+	ps.U.Password = pwd
+
+	log.Println(ps.U)
+	context.DefaultContext.Set(r, "pageStatus", ps)
+	newsetup(w, r)
+}
+
+func newsetup(w http.ResponseWriter, r *http.Request) {
 	err := templates.ExecuteTemplate(w, "setup.html", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -61,11 +97,13 @@ func newcert(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setupHttps() {
+func setup() {
 	log.Printf("(Warning) Starting setup, go to http://localhost/...")
 	smux := http.NewServeMux()
 	setupServer := http.Server{Handler: smux}
-	smux.HandleFunc("/", sayhi)
+	smux.HandleFunc("/", startSetup)
+	smux.HandleFunc("/userSetup", userSetup)
+	smux.HandleFunc("/newsetup", newsetup)
 	smux.HandleFunc("/newca", newca)
 	smux.HandleFunc("/newcert", newcert)
 	err := setupServer.ListenAndServe()

@@ -1,34 +1,30 @@
 package main
 
 import (
-	"encoding/gob"
 	"fmt"
-	"log"
 	"net/smtp"
-	"os"
 	"strings"
 )
 
 const (
-	MAILCFG_FILE = "mail.cfg"
-	MAIL_LABEL   = "WebCA"
+	MAIL_LABEL = "WebCA"
 )
 
 type Mailer struct {
 	Server, User, Passwd string
-	BestAuth             smtp.Auth
+	bestAuth             smtp.Auth
 }
 
-func (m *Mailer) sendMail(to, subject, body string) error {
+func (m *Mailer) SendMail(to, subject, body string) error {
 	host := m.Server
 	if strings.Contains(host, ":") {
 		host = strings.Split(host, ":")[0]
 	}
 	//log.Println("host=",host)
-	auths := []smtp.Auth{m.BestAuth}
+	auths := []smtp.Auth{m.bestAuth}
 	msg := "from: \"" + MAIL_LABEL + "\" <" + m.User + ">\nto: " + to +
 		"\nsubject: (" + MAIL_LABEL + ") " + subject + "\n\n" + body
-	if m.BestAuth == nil {
+	if m.bestAuth == nil {
 		auths = []smtp.Auth{smtp.CRAMMD5Auth(m.User, m.Passwd),
 			smtp.PlainAuth("", m.User, m.Passwd, host)}
 	}
@@ -36,7 +32,7 @@ func (m *Mailer) sendMail(to, subject, body string) error {
 	for _, auth := range auths {
 		err := smtp.SendMail(m.Server, auth, m.User, []string{to}, ([]byte)(msg))
 		if err == nil {
-			m.BestAuth = auth
+			m.bestAuth = auth
 			return nil
 		} else {
 			errs = fmt.Errorf("%v%v\n", errs, err)
@@ -45,6 +41,7 @@ func (m *Mailer) sendMail(to, subject, body string) error {
 	return errs
 }
 
+/*
 func read(msg string, ptr interface{}) {
 	fmt.Print(msg)
 	os.Stdout.Sync()
@@ -85,7 +82,6 @@ func setup() Mailer {
 	return mailer
 }
 
-/*
 func main() {
 	subject:="Test notification"
 	to:="josvazg+webca@gmail.com"
