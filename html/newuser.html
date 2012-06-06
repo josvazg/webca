@@ -1,4 +1,4 @@
-{{template "setuphtmlheader"}}
+{{template "setuphtmlheader" .}}
 
 <h2>{{template "userSetupTitle"}}</h2>
 
@@ -8,8 +8,7 @@
 {{template "setupInfo"}}
 </div>
 
-step={{.Step}}<br/>
-err={{.Error}}<br/>
+{{with .Error}}{{template "notice" .}}{{end}}
 
 <input type="hidden" name="Step" value="{{.Step}}"/>
 <table class="form">

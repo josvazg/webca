@@ -35,6 +35,11 @@ type PageStatus struct {
 	Error string
 }
 
+func (ps *PageStatus) Tr(s string) string {
+	return tr(s)
+}
+
+// Transaltion function
 func tr(s string) string {
 	return s
 }
@@ -48,7 +53,7 @@ func webca() {
 }
 
 func startSetup(w http.ResponseWriter, r *http.Request) {
-	ps := PageStatus{SetupWizard: SetupWizard{Step: 1}}
+	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1}}
 	context.DefaultContext.Set(r, "pageStatus", ps)
 	newuser(w, r)
 }

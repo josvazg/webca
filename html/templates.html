@@ -1,15 +1,39 @@
 {{define "setuphtmlheader"}}
 <html>
 <head>
-<title>WebCA (setup)</title>
+<title>WebCA (Setup)</title>
 <style type="text/css">
 {{template "style.css"}}
 </style>
 </head>
 <body>
 <div class="topbar">
-<h1>WebCA (setup)</h1>
+<h1><label>WebCA Setup:<label>
+<label class="shadowed" id="Step1">
+<label class="biggest">1</label><label class="explanation">First User</label>
+</label>
+<label class="shadowed" id="Step2">
+<label class="biggest">2</label><label class="explanation">CA Generation</label>
+</label>
+<label class="shadowed" id="Step3">
+<label class="biggest">3</label><label class="explanation">WebCA's Server Certificate</label>
+</label>
+<label class="shadowed" id="Step4">
+<label class="biggest">4</label><label class="explanation">Mailer Configuration</label>
+</label>
+</h1>
 </div>
+<script type="text/javascript">
+function $(id) {
+	return document.getElementById(id);
+}
+{{if .Step}}
+$('Step{{.Step}}').className='activated';
+{{end}}
+
+step={{.Step}}
+
+</script>
 {{end}}
 
 {{define "htmlheader"}}
@@ -31,5 +55,11 @@
 </div>
 </body>
 </html>
+{{end}}
+
+{{define "notice"}}
+<div class="notice">
+<label class="notice">{{.Error}}<label>
+</div>
 {{end}}
 
