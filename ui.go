@@ -7,15 +7,18 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
 
-var store = sessions.NewCookieStore([]byte("webcasecret"))
+var store = sessions.NewCookieStore([]byte("34534askjdfhkjsd41234rrf34856"))
 
 var templates = template.Must(template.ParseFiles("html/setup.html", "html/newuser.html",
 	"html/newca.html", "html/newcert.html",
 	"html/templates.html", "html/style.css", "html/translate_en.html"))
+
+var defaultHandler func (w http.ResponseWriter, r *http.Request)
 
 const (
 	SETUPADDR    = "127.0.0.1:80"
@@ -24,8 +27,8 @@ const (
 
 type SetupWizard struct {
 	Step   int
-	U      User
-	M      Mailer
+	U      *User
+	M      *Mailer
 	Server string
 	Port   string
 }
@@ -55,19 +58,11 @@ func webca() {
 func startSetup(w http.ResponseWriter, r *http.Request) {
 	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1}}
 	context.DefaultContext.Set(r, "pageStatus", ps)
-	newuser(w, r)
+	r.URL=r.URL.Parse("/newuser")
 }
 
-func newuser(w http.ResponseWriter, r *http.Request) {
-	ps := context.DefaultContext.Get(r, "pageStatus")
-	err := templates.ExecuteTemplate(w, "newuser.html", ps)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func usersetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{}
+func userSetup(w http.ResponseWriter, r *http.Request) {
+	ps := &PageStatus{U:&User{}}
 	ps.Step, _ = strconv.Atoi(r.FormValue("Step"))
 	ps.U.Username = r.FormValue("Username")
 	ps.U.Fullname = r.FormValue("Fullname")
@@ -77,15 +72,20 @@ func usersetup(w http.ResponseWriter, r *http.Request) {
 	if pwd == "" || pwd != pwd2 {
 		ps.Error = tr("BadPasswd")
 		context.DefaultContext.Set(r, "pageStatus", ps)
-		newuser(w, r)
+		r.URL=r.URL.Parse("/newuser")
+		autoPage(w, r)
 		return
 	}
 	ps.U.Password = pwd
 	ps.Step += 1
 	log.Println(ps.U)
-	context.DefaultContext.Set(r, "pageStatus", ps)
 	session, _ := store.Get(r, "")
-	session.Values["user"] = ps.U
+	_,ok=session.Values["ps"]
+	if ok {
+		session.Values["ps"].U=ps.U
+	} else {
+		session.Values["ps"] = ps
+	}
 	newsetup(w, r)
 }
 
@@ -100,7 +100,7 @@ func newsetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func savesetup(w http.ResponseWriter, r *http.Request) {
+func saveSetup(w http.ResponseWriter, r *http.Request) {
 	ps := &PageStatus{}
 	ps.Step, _ = strconv.Atoi(r.FormValue("Step"))
 	ps.M.User = r.FormValue("Email")
@@ -126,30 +126,73 @@ func savesetup(w http.ResponseWriter, r *http.Request) {
 	newca(w, r)
 }
 
-func newca(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "newca.html", nil)
+func autoPage(w http.ResponseWriter, r *http.Request) {
+	ps:=getPageStatus(r)
+	page:=page(r)
+	if page=="" {
+		defaultHandler(w,r)
+		return
+	}
+	if !checkPage(page) {
+		http.NotFound(w, r)
+		return
+	}
+	log.Println("uri=",r.URL.RequestURI(),"page=",page)
+	err := templates.ExecuteTemplate(w, page+".html", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func newcert(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "newcert.html", nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func checkPage(page string) bool {
+	if page=="templates" {
+		return false
 	}
+	_, err := os.Stat("html/"+page+".html")
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+
+}
+
+func page(r *http.Request) string {
+	pg:=r.URL.RequestURI()
+	if strings.Contains(pg, "?") {
+		pg=strings.Split(pg, "?")[0]
+	}
+	if strings.HasPrefix(pg, "/") {
+		pg=pg[1:]
+	}
+	if strings.Contains(pg, "/") {
+		parts:=strings.Split(pg, "/")
+		pg=parts[len(parts)-1]
+	}
+	if strings.Contains(pg, ".") {
+		pg=strings.Split(pg,".")[0]
+	}
+	return pg
+}
+
+func getPageStatus(r *http.Request) *PageStatus {
+	ips:=context.DefaultContext.Get(r, "pageStatus")
+	if ips==nil {
+	    session, _ := store.Get(r, "webca")
+	    ips=session.Values["pageStatus"]
+	}
+	if ips!=nil {
+		return ips.(*PageStatus)
+	}
+	return &PageStatus{}
 }
 
 func setup() {
 	log.Printf("(Warning) Starting setup, go to http://127.0.0.1/...")
 	smux := http.NewServeMux()
 	setupServer := http.Server{Addr: SETUPADDR, Handler: smux}
-	smux.HandleFunc("/", startSetup)
-	smux.HandleFunc("/usersetup", usersetup)
-	smux.HandleFunc("/newsetup", newsetup)
-	smux.HandleFunc("/saveSetup", savesetup)
-	smux.HandleFunc("/newca", newca)
-	smux.HandleFunc("/newcert", newcert)
+	defaultHandler=startSetup
+	smux.HandleFunc("/", autoPage)
+	smux.HandleFunc("/userSetup", userSetup)
 	err := setupServer.ListenAndServe()
 	if err != nil && !strings.Contains(err.Error(), "perm") {
 		log.Fatalf("Could not start setup!: %s", err)
