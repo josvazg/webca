@@ -2,21 +2,26 @@
 
 <h2>{{template "userSetupTitle"}}</h2>
 
-<form action="/userSetup" method="post">
+<form action="/saveSetup" method="post">
 
 <div class="explanation">
 {{template "setupInfo"}}
 </div>
 
+step={{.Step}}<br/>
+err={{.Error}}<br/>
+
+<input type="hidden" name="Step" value="{{.Step}}"/>
 <table class="form">
 <tr><td class="label">{{template "email"}}:</td>
-    <td><input type="text" name="email"></td></tr>
+    <td class="label"><input type="text" name="Email" value="{{.M.User}}"></td></tr>
 <tr><td class="label">{{template "emailserver"}}:</td>
-    <td><input type="text" name="emailserver"></td></tr>
+    <td class="label"><input type="text" name="Server" value="{{.Server}}">:<input 
+               type="text" name="Port" value="{{.Port}}" size="6"></td></tr>
 <tr><td class="label">{{template "emailpasswd"}}:</td>
-    <td><input type="password" name="emailpasswd"></td></tr>
+    <td class="label"><input type="password" name="Password"></td></tr>
 <tr><td class="label">{{template "repeatEmailpasswd"}}:</td>
-    <td><input type="password" name="emailpasswd2"></td></tr>
+    <td class="label"><input type="password" name="Password2"></td></tr>
 <tr><td colspan="2"><input type="submit" name="submit" value="{{template "save"}}"><td><tr>
 </table>
 </form>
