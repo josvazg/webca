@@ -8,6 +8,8 @@
 {{template "casetupInfo"}}
 </div>
 
+{{if .Error}}{{template "notice" .}}{{end}}
+
 <table class="form">
 <tr><td class="mainlabel">{{template "CA"}}:</td>
     <td><input type="text" class="main" name="CA"></td></tr>

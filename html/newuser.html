@@ -8,11 +8,11 @@
 {{template "setupInfo"}}
 </div>
 
-{{with .Error}}{{template "notice" .}}{{end}}
+{{if .Error}}{{template "notice" .}}{{end}}
 
 <input type="hidden" name="Step" value="{{.Step}}"/>
 <table class="form">
-<tr><td class="mainlabel">{{template "username"}}:...</td>
+<tr><td class="mainlabel">{{template "username"}}:</td>
     <td class="mainlabel">
     <input type="text" class="main" name="Username" value="{{.U.Username}}"></td></tr>
 <tr><td class="label">{{template "fullname"}}:</td>
