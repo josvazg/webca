@@ -62,6 +62,18 @@ func copyName(name pkix.Name) pkix.Name {
 	}
 }
 
+func prepareName(name *pkix.Name) {
+	if name.Country == nil {
+		name.StreetAddress = []string{""}
+		name.PostalCode = []string{""}
+		name.Province = []string{""}
+		name.Locality = []string{""}
+		name.OrganizationalUnit = []string{""}
+		name.Organization = []string{""}
+		name.Country = []string{""}
+	}
+}
+
 func genCert(p *Cert, name pkix.Name, years int) (*Cert, error) {
 	t := &Cert{}
 	key, err := rsa.GenerateKey(rand.Reader, 1024)

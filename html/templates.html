@@ -57,9 +57,29 @@ step={{.Step}}
 </html>
 {{end}}
 
-{{define "notice"}}
-<div class="notice">
-<label class="notice">{{.Error}}<label>
-</div>
+{{define "certCommonFields"}}
+<tr><td class="label">{{tr "Street"}}:</td>
+    <td><input type="text" name="StreetAddress" value="{{indexOf .Name.StreetAddress 0}}"></td></tr>
+<tr><td class="label">{{tr "Postal Code"}}:</td>
+    <td><input type="text" name="PostalCode" value="{{indexOf .Name.PostalCode 0}}"></td></tr>
+<tr><td class="label">{{tr "Locality"}}:</td>
+    <td><input type="text" name="Locality" value="{{indexOf .Name.Locality 0}}"></td></tr>
+<tr><td class="label">{{tr "Province"}}:</td>
+    <td><input type="text" name="Province" value="{{indexOf .Name.Province 0}}"></td></tr>
+<tr><td class="label">{{tr "Org. Unit"}}:</td>
+    <td><input type="text" name="OrganizationalUnit" 
+                           value="{{indexOf .Name.OrganizationalUnit 0}}"></td></tr>
+<tr><td class="label">{{tr "Organization"}}:</td>
+    <td><input type="text" name="Organization" value="{{indexOf .Name.Organization 0}}"></td></tr>
+<tr><td class="label">{{tr "Country"}}:</td>
+    <td><input type="text" name="Country" value="{{indexOf .Name.Country 0}}"></td></tr>
+<tr id="ops"><td class="label">{{tr "Duration in Days"}}:</td>
+    <td><input type="text" name="Duration" value="{{.Duration}}"></td></tr>
 {{end}}
+
+{{define "notice"}}
+{{if .Error}}<div class="notice"><label class="notice">{{.Error}}<label></div>{{end}}
+{{end}}
+
+
 

@@ -1,30 +1,30 @@
 {{template "setuphtmlheader" .}}
 
-<h2>{{template "userSetupTitle"}}</h2>
+<h2>{{tr "User Setup"}}</h2>
 
 <form action="/userSetup" method="post">
 
 <div class="explanation">
-{{template "setupInfo"}}
+{{tr "You'll need a user and a password in order to use this application."}} <br/>
 </div>
 
-{{if .Error}}{{template "notice" .}}{{end}}
+{{template "notice" .}}
 
 <input type="hidden" name="Step" value="{{.Step}}"/>
 <table class="form">
-<tr><td class="mainlabel">{{template "username"}}:</td>
+<tr><td class="mainlabel">{{tr "Username"}}:</td>
     <td class="mainlabel">
     <input type="text" class="main" name="Username" value="{{.U.Username}}"></td></tr>
-<tr><td class="label">{{template "fullname"}}:</td>
+<tr><td class="label">{{tr "Fullname"}}:</td>
     <td class="label">
     <input type="text" name="Fullname" size="50" value="{{.U.Fullname}}"></td></tr>
-<tr><td class="label">{{template "password"}}:</td>
+<tr><td class="label">{{tr "Password"}}:</td>
     <td class="label"><input type="password" name="Password"></td></tr>
-<tr><td class="label">{{template "repeatPasswd"}}:</td>
+<tr><td class="label">{{tr "Repeat Password"}}:</td>
     <td class="label"><input type="password" name="Password2"></td></tr>
-<tr><td class="label">{{template "email"}}:</td>
+<tr><td class="label">{{tr "Email"}}:</td>
     <td class="label"><input type="text" name="Email" value="{{.U.Email}}"></td></tr>
-<tr><td colspan="2"><input type="submit" name="submit" value="{{template "save"}}"><td><tr>
+<tr><td colspan="2"><input type="submit" name="submit" value='{{tr "Save"}}'><td><tr>
 </table>
 </form>
 

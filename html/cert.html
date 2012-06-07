@@ -1,0 +1,30 @@
+{{template "setuphtmlheader"}}
+
+<h2>{{tr "New Certificate"}}</h2>
+
+<form action="/newcert" method="post">
+
+<div class="explanation">
+{{tr "We now need a certifcate for the WebCA server itself"}}
+</div>
+
+{{template "notice" .}}
+
+<input type="hidden" name="Step" value="{{.Step}}"/>
+<table class="form">
+<tr><td class="mainlabel">{{tr "Certificate Name"}}:</td>
+    <td><input type="text" class="main" name="CommonName" value="{{.Cert.CommonName}}"></td></tr>
+<tr><td colspan="2">
+<div id="toggler" onclick="toggleOps()" class="control">{{tr "More"}}...</div>
+{{template "certCommonFields" .Cert}}
+<tr><td colspan="2"><input type="submit" name="submit" value='{{tr "Create"}}'><td><tr>
+</table>
+</form>
+
+<script type="text/javascript">
+	{{template "JSGetID"}}
+
+	{{template "JSToggleOps"}}
+</script>
+
+{{template "htmlfooter"}}
