@@ -58,11 +58,12 @@ func webca() {
 func startSetup(w http.ResponseWriter, r *http.Request) {
 	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1}}
 	context.DefaultContext.Set(r, "pageStatus", ps)
-	r.URL=r.URL.Parse("/newuser")
+	r.URL,_=r.URL.Parse("/newuser")
+	autoPage(w, r)
 }
 
 func userSetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{U:&User{}}
+	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1, U:&User{}}}
 	ps.Step, _ = strconv.Atoi(r.FormValue("Step"))
 	ps.U.Username = r.FormValue("Username")
 	ps.U.Fullname = r.FormValue("Fullname")
@@ -72,7 +73,7 @@ func userSetup(w http.ResponseWriter, r *http.Request) {
 	if pwd == "" || pwd != pwd2 {
 		ps.Error = tr("BadPasswd")
 		context.DefaultContext.Set(r, "pageStatus", ps)
-		r.URL=r.URL.Parse("/newuser")
+		r.URL,_=r.URL.Parse("/newuser")
 		autoPage(w, r)
 		return
 	}
@@ -80,9 +81,9 @@ func userSetup(w http.ResponseWriter, r *http.Request) {
 	ps.Step += 1
 	log.Println(ps.U)
 	session, _ := store.Get(r, "")
-	_,ok=session.Values["ps"]
+	_,ok:=session.Values["ps"]
 	if ok {
-		session.Values["ps"].U=ps.U
+		session.Values["ps"].(*PageStatus).U=ps.U
 	} else {
 		session.Values["ps"] = ps
 	}
@@ -123,7 +124,8 @@ func saveSetup(w http.ResponseWriter, r *http.Request) {
 	context.DefaultContext.Set(r, "pageStatus", ps)
 	session, _ := store.Get(r, "")
 	session.Values["mailer"] = ps.M
-	newca(w, r)
+	r.URL,_=r.URL.Parse("/newca")
+	autoPage(w, r)
 }
 
 func autoPage(w http.ResponseWriter, r *http.Request) {
