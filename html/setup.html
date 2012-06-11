@@ -1,0 +1,68 @@
+{{template "setuphtmlheader" .}}
+
+<form action="/saveSetup" method="post">
+
+<div id="form1">
+<h2>{{tr "First User"}}</h2>
+<div class="explanation">
+{{tr "You'll need a user and a password in order to use this application."}} <br/>
+</div>
+<table class="form">
+{{template "userDetails" .}}
+<tr><td colspan="2">
+	<input type="button" name="nextStep" onclick="next()" value='{{tr "Next"}} &gt;'/>
+	<td><tr>
+</table>
+</div>
+
+<div id="form2" style="display: none">
+<h2>{{tr "CA Generation"}}</h2>
+<div class="explanation">
+{{tr "We cannot run our own Web CA on an unsecure http:// connection like this!"}}<p>
+{{tr "Lets create the certificates right now..."}}
+</div>
+<table class="form">
+<tr><td class="mainlabel">{{tr "CA Name"}}:</td>
+    <td><input type="text" class="main" name="CommonName" value="{{.CA.Name.CommonName}}"></td></tr>
+{{template "certCommonFields" .CA}}
+<tr><td><input type="button" name="prevStep" onclick="prev()" value='&lt; {{tr "Previous"}}'/></td>
+	<td><input type="button" name="nextStep" onclick="next()" value='{{tr "Next"}} &gt;'/></td><tr>
+</table>
+</div>
+
+<div id="form3" style="display: none">
+<h2>{{tr "WebCA's Server Certificate"}}</h2>
+<div class="explanation">
+{{tr "We now need a certificate for the WebCA server itself..."}}
+</div>
+<table class="form">
+<tr><td class="mainlabel">{{tr "Certificate Name"}}:</td>
+    <td><input type="text" class="main" name="CommonName" value="{{.Cert.Name.CommonName}}"></td>
+</tr>
+{{template "certCommonFields" .Cert}}
+<tr><td colspan="2" id="toggler" onclick="toggleOps()" class="control">{{tr "More"}}...</td></tr>
+<tr><td><input type="button" name="prevStep" onclick="prev()" value='&lt; {{tr "Previous"}}'/></td>
+	<td><input type="button" name="nextStep" onclick="next()" value='{{tr "Next"}} &gt;'/></td><tr>
+</table>
+</div>
+
+<div id="form4" style="display: none">
+<h2>{{tr "Mailer Configuration"}}</h2>
+<div class="explanation">
+{{tr "Finally, if you want to get email notifications before your certificates expire,"}}<p/>
+{{tr "we need to setup an email account"}}
+</div>
+<table class="form">
+{{template "mailerDetails" .}}
+<tr><td><input type="button" name="prevStep" onclick="prev()" value='&lt; {{tr "Previous"}}'/></td>
+	<td><input type="submit" name="submit" value="{{tr "Save"}}"></td><tr>
+</table>
+</div>
+
+</form>
+
+<script type="text/javascript">
+toggleOps();
+</script>
+
+{{template "htmlfooter"}}

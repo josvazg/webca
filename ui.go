@@ -89,13 +89,14 @@ func initTemplates() {
 		"tr": tr, "indexOf": indexOf,
 	})
 	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
-		"html/ca.html", "html/cert.html",
+		"html/ca.html", "html/cert.html", "html/setup.html",
 		"html/templates.html", "html/templates.js", "html/style.css"))
 
 	// build templateIndex
 	templateIndex = make(map[string]*template.Template)
 
 	for _, t := range templates.Templates() {
+		log.Println("template: ",t.Name())
 		if strings.HasSuffix(t.Name(), _HTML) {
 			templateIndex[t.Name()] = t
 		}
@@ -105,7 +106,7 @@ func initTemplates() {
 // startSetup starts the setup wizard web page sequence
 func startSetup(w http.ResponseWriter, r *http.Request) {
 	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1}}
-	forwardTo(w, r, ps, "user")
+	forwardTo(w, r, ps, "setup")
 }
 
 // userSetup saves a new user
