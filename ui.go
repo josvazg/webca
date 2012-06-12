@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"code.google.com/p/gorilla/context"
 	"code.google.com/p/gorilla/sessions"
 	"crypto/x509/pkix"
-	//"fmt"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -58,6 +59,42 @@ type PageStatus struct {
 	Error string
 }
 
+// DisplayCertOps generates the Cert common form fields for the CA or the Cert
+func (ps *PageStatus) DisplayCertOps(crt *CertSetup) template.HTML {
+	ops := bytes.NewBufferString("")
+	fields := []string{"StreetAddress", "PostalCode", "Locality", "Province",
+		"OrganizationalUnit", "Organization", "Country"}
+	labels := []string{"Street Address", "Postal Code", "Locality", "Province",
+		"Organizational Unit", "Organization", "Country"}
+	fieldValues := [][]string{crt.Name.StreetAddress, crt.Name.PostalCode, crt.Name.Locality,
+		crt.Name.Province, crt.Name.OrganizationalUnit, crt.Name.Organization, crt.Name.Country}
+	hide := ""
+	prfx := "ca"
+	if crt == &ps.Cert {
+		hide = "style='display: none;'"
+		prfx = "cert"
+	}
+	for i, field := range fields {
+		fmt.Fprintf(ops, "<tr class='ops' %s>\n", hide)
+		fmt.Fprintf(ops, "<td class='label'>%s:</td>\n", tr(labels[i]))
+		fmt.Fprintf(ops, "<td><input type='text' id='%s.%s' name='%s.%s'\n",
+			prfx, field, prfx, field)
+		fmt.Fprintf(ops, "            value='%s'></td></tr>\n", indexOf(fieldValues[i], 0))
+	}
+	fmt.Fprintf(ops, "<tr class='ops' %s><td class='label'>%s:</td>\n",
+		hide, tr("Duration in Days"))
+	fmt.Fprintf(ops, "<td><select id='%s.Duration' name='%s.Duration' %s>\n", prfx, prfx)
+	durations := []int{30, 60, 90, 180, 365, 730, 1095, 1826, 3826}
+	durationLabels := []string{"1 Month", "2 Months", "3 Months", "6 Months",
+		"1 Year", "2 Years", "3 Years", "5 Years", "10 Years"}
+	for i, label := range durationLabels {
+		sel := ""
+		fmt.Fprintf(ops, "  <option value='%v' %s>%v</option>\n", durations[i], sel, tr(label))
+	}
+	ops.WriteString("</select></tr>\n")
+	return template.HTML(ops.String())
+}
+
 // tr is the app translation function
 func tr(s string) string {
 	return s
@@ -96,7 +133,7 @@ func initTemplates() {
 	templateIndex = make(map[string]*template.Template)
 
 	for _, t := range templates.Templates() {
-		log.Println("template: ",t.Name())
+		//log.Println("template: ", t.Name())
 		if strings.HasSuffix(t.Name(), _HTML) {
 			templateIndex[t.Name()] = t
 		}
@@ -105,7 +142,7 @@ func initTemplates() {
 
 // startSetup starts the setup wizard web page sequence
 func startSetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1}}
+	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1, Server: "smtp.gmail.com", Port: "587"}}
 	forwardTo(w, r, ps, "setup")
 }
 
@@ -282,6 +319,7 @@ func setup() {
 	setupServer := http.Server{Addr: SETUPADDR, Handler: smux}
 	defaultHandler = startSetup
 	smux.HandleFunc("/", autoPage)
+	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.HandleFunc("/userSetup", userSetup)
 	smux.HandleFunc("/caSetup", caSetup)
 	err := setupServer.ListenAndServe()

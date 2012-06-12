@@ -20,9 +20,8 @@ function getElementsByClass( searchClass, domNode, tagName) {
 } 
 {{end}}
 
-{{define "JSNavigation"}}
+{{define "JSSetupNavigation"}}
 	var step=1;
-	var help=0;
 	function next() {
 		$('Step'+step).className='shadowed';
 		$('form'+step).style.display='none';
@@ -35,13 +34,37 @@ function getElementsByClass( searchClass, domNode, tagName) {
 		$('Step'+step).className='shadowed';
 		$('form'+step).style.display='none';
 		step--;
+		helper();
 		$('Step'+step).className='activated';
 		$('form'+step).style.display='';
 	}
 	function helper() {
-		if(step==2 && help==0) {
-
-			help++;
+		if(step==1) {
+			$('Prev').style.visibility='hidden';
+		} else {
+			$('Prev').style.visibility='';
+		}
+		if(step==3) {
+			fields=["StreetAddress","PostalCode","Locality","Province",
+				    "OrganizationalUnit","Organization","Country"];
+			for(i=0;i<fields.length;i++) {
+				field=fields[i];
+				if($('cert.'+field).value==null || $('cert.'+field).value=='') {
+					$('cert.'+field).value=$('ca.'+field).value;
+				}
+			}
+			for(i=0;i<$('cert.Duration').options.length;i++) {
+				op=$('cert.Duration').options[i];
+				op.selected=(op.value=="365");
+			}			
+		}
+		if(step==4) {
+			if($('M.User').value==null || $('M.User').value=='') {
+				$('M.User').value=$('Email').value;
+			}
+			$('Next').style.visibility='hidden';
+		} else {
+			$('Next').style.visibility='';
 		}
 	}
 {{end}}
@@ -60,5 +83,34 @@ function toggleOps(el) {
 			$('toggler').innerHTML='{{tr "More"}}';
 		}
 	}
+}
+{{end}}
+
+{{define "JSCheckpasswd"}}
+function showStepError(step, msg) {
+	$('noticeText'+step).innerHTML=msg;
+	$('notice'+step).style.visibility='';
+	$('submit').disabled=true;
+}
+function hideStepError(currStep) {
+	$('notice'+step).style.visibility='hidden';
+	$('submit').disabled=false;
+}
+function checkPassword(currStep,el) {
+	if (el.value=="") {
+		showStepError(currStep,'{{tr "Type some password!"}}');
+		return
+	}
+	oid=el.id;
+	if(oid.substr(-1) === "2") {
+		oid=oid.substr(0,oid.length-1);
+	} else {
+		oid=oid+"2";
+	}
+	if ($(oid).value!=el.value) {
+		showStepError(currStep,'{{tr "Passwords don't match!"}}');
+		return
+	}
+	hideStepError(currStep);
 }
 {{end}}

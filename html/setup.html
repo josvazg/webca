@@ -1,17 +1,21 @@
 {{template "setuphtmlheader" .}}
 
-<form action="/saveSetup" method="post">
-
+<form action="/endSetup" method="post">
+<table style="width: 100%; height: 500px">
+<tr>
+<td class="huge">
+<a class="huge" id="Prev" style="visibility: hidden" href="javascript:" onclick="prev()">&lt;</a>
+</td>
+<td style="vertical-align: top">
 <div id="form1">
 <h2>{{tr "First User"}}</h2>
 <div class="explanation">
 {{tr "You'll need a user and a password in order to use this application."}} <br/>
 </div>
+<div class="notice" style="visibility: hidden" id="notice1">
+<label class="notice" id="noticeText1"><label></div>
 <table class="form">
 {{template "userDetails" .}}
-<tr><td colspan="2">
-	<input type="button" name="nextStep" onclick="next()" value='{{tr "Next"}} &gt;'/>
-	<td><tr>
 </table>
 </div>
 
@@ -21,12 +25,13 @@
 {{tr "We cannot run our own Web CA on an unsecure http:// connection like this!"}}<p>
 {{tr "Lets create the certificates right now..."}}
 </div>
+<div class="notice" style="visibility: hidden" id="notice2">
+<label class="notice" id="noticeText2"><label></div>
 <table class="form">
 <tr><td class="mainlabel">{{tr "CA Name"}}:</td>
-    <td><input type="text" class="main" name="CommonName" value="{{.CA.Name.CommonName}}"></td></tr>
-{{template "certCommonFields" .CA}}
-<tr><td><input type="button" name="prevStep" onclick="prev()" value='&lt; {{tr "Previous"}}'/></td>
-	<td><input type="button" name="nextStep" onclick="next()" value='{{tr "Next"}} &gt;'/></td><tr>
+    <td><input type="text" class="main" name="ca.CommonName" 
+                                        value="{{.CA.Name.CommonName}}"></td></tr>
+{{.DisplayCertOps .CA}}
 </table>
 </div>
 
@@ -35,34 +40,40 @@
 <div class="explanation">
 {{tr "We now need a certificate for the WebCA server itself..."}}
 </div>
+<div class="notice" style="visibility: hidden" id="notice3">
+<label class="notice" id="noticeText3"><label></div>
 <table class="form">
 <tr><td class="mainlabel">{{tr "Certificate Name"}}:</td>
-    <td><input type="text" class="main" name="CommonName" value="{{.Cert.Name.CommonName}}"></td>
+    <td><input type="text" class="main" name="cert.CommonName" 
+                                        value="{{.Cert.Name.CommonName}}"></td>
 </tr>
-{{template "certCommonFields" .Cert}}
-<tr><td colspan="2" id="toggler" onclick="toggleOps()" class="control">{{tr "More"}}...</td></tr>
-<tr><td><input type="button" name="prevStep" onclick="prev()" value='&lt; {{tr "Previous"}}'/></td>
-	<td><input type="button" name="nextStep" onclick="next()" value='{{tr "Next"}} &gt;'/></td><tr>
+{{.DisplayCertOps .Cert}}
+<tr><td colspan="2">
+<a id="toggler" onclick="toggleOps($('form3'))" class="control">{{tr "More"}}...</a>
+</td></tr>
 </table>
 </div>
 
 <div id="form4" style="display: none">
 <h2>{{tr "Mailer Configuration"}}</h2>
 <div class="explanation">
-{{tr "Finally, if you want to get email notifications before your certificates expire,"}}<p/>
-{{tr "we need to setup an email account"}}
+{{tr "Finally, if you want to get email notifications before your certificates expires,"}}<p/>
+{{tr "we need to configure a sending email account"}}
 </div>
+<div class="notice" style="visibility: hidden" id="notice4">
+<label class="notice" id="noticeText4"><label></div>
 <table class="form">
 {{template "mailerDetails" .}}
-<tr><td><input type="button" name="prevStep" onclick="prev()" value='&lt; {{tr "Previous"}}'/></td>
-	<td><input type="submit" name="submit" value="{{tr "Save"}}"></td><tr>
+<tr><td colspan="2">
+<input type="submit" disabled="true" id="submit" name="submit" value="{{tr "Save"}}"></td><tr>
 </table>
 </div>
-
+</td>
+<td class="huge">
+<a class="huge" id="Next" href="javascript:" onclick="next()">&gt;</a>
+</td>
+</tr>
+</table>
 </form>
-
-<script type="text/javascript">
-toggleOps(form3);
-</script>
 
 {{template "htmlfooter"}}

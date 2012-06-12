@@ -8,8 +8,20 @@ h1 {
 	color: #000030;
 }
 
-.biggest {
-	font-size: 60pt;
+.bigger {
+	font-size: 36pt;
+}
+
+.huge {
+	font-family: sans-serif;
+	font-size: 100pt;
+	text-align: center;
+	vertical-align: middle;
+	color: black;
+}
+a.huge:hover {
+	text-decoration: none;
+	color: grey;
 }
 
 .shadowed {
@@ -58,7 +70,7 @@ div.intro {
 }
 
 .explanation {
-	margin: 1em;
+	margin: 0.5em;
 	font-size: 10pt;
 	font-weight: normal;
 	text-align: center;
@@ -95,6 +107,7 @@ div.warn {
 	text-align: center;
 	margin-left: auto;
     margin-right: auto;
+	cursor: pointer;
 }
 
 td.main {

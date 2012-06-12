@@ -10,23 +10,24 @@
 <div class="topbar">
 <h1><label>WebCA Setup:<label>
 <label class="activated" id="Step1">
-<label class="biggest">1</label><label class="explanation">First User</label>
+<label class="bigger">1</label><label class="explanation">First User</label>
 </label>
 <label class="shadowed" id="Step2">
-<label class="biggest">2</label><label class="explanation">CA Generation</label>
+<label class="bigger">2</label><label class="explanation">CA Generation</label>
 </label>
 <label class="shadowed" id="Step3">
-<label class="biggest">3</label><label class="explanation">WebCA's Server Certificate</label>
+<label class="bigger">3</label><label class="explanation">WebCA's Server Certificate</label>
 </label>
 <label class="shadowed" id="Step4">
-<label class="biggest">4</label><label class="explanation">Mailer Configuration</label>
+<label class="bigger">4</label><label class="explanation">Mailer Configuration</label>
 </label>
 </h1>
 </div>
 <script type="text/javascript">
 {{template "JSGetID"}}
-{{template "JSNavigation"}}
+{{template "JSSetupNavigation"}}
 {{template "JSToggleOps"}}
+{{template "JSCheckpasswd"}}
 </script>
 {{end}}
 
@@ -48,59 +49,46 @@
 {{define "htmlfooter"}}
 <div class="footer">
 	<a href="http://github.com/josvazg/webca">Hosted on GitHub</a><br/>
-	<a rel="license" href="http://creativecommons.org/licenses/by/3.0/"><img alt="Licencia Creative Commons" style="border-width:0" src="http://i.creativecommons.org/l/by/3.0/88x31.png" /></a><br /><a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.
+	<a rel="license" href="http://creativecommons.org/licenses/by/3.0/"><img 
+       alt="Licencia Creative Commons" style="border-width:0" src="img/ccby.png" />
+    </a><br /><a rel="license" href="http://creativecommons.org/licenses/by/3.0/">
+    Creative Commons Attribution 3.0 License</a>.
 </div>
 </body>
 </html>
 {{end}}
 
-{{define "certCommonFields"}}
-<tr class="ops"><td class="label">{{tr "Street"}}:</td>
-    <td><input type="text" name="StreetAddress" value="{{indexOf .Name.StreetAddress 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Postal Code"}}:</td>
-    <td><input type="text" name="PostalCode" value="{{indexOf .Name.PostalCode 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Locality"}}:</td>
-    <td><input type="text" name="Locality" value="{{indexOf .Name.Locality 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Province"}}:</td>
-    <td><input type="text" name="Province" value="{{indexOf .Name.Province 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Org. Unit"}}:</td>
-    <td><input type="text" name="OrganizationalUnit" 
-                           value="{{indexOf .Name.OrganizationalUnit 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Organization"}}:</td>
-    <td><input type="text" name="Organization" value="{{indexOf .Name.Organization 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Country"}}:</td>
-    <td><input type="text" name="Country" value="{{indexOf .Name.Country 0}}"></td></tr>
-<tr class="ops"><td class="label">{{tr "Duration in Days"}}:</td>
-    <td><input type="text" name="Duration" value="{{.Duration}}"></td></tr>
-{{end}}
-
-{{define "notice"}}
-{{if .Error}}<div class="notice"><label class="notice">{{.Error}}<label></div>{{end}}
-{{end}}
-
 {{define "userDetails"}}
 <tr><td class="mainlabel">{{tr "Username"}}:</td>
     <td class="mainlabel">
-    <input type="text" class="main" name="Username" value="{{.U.Username}}"></td></tr>
+    <input type="text" class="main" id="Username" name="Username" 
+           value="{{.U.Username}}"></td></tr>
 <tr><td class="label">{{tr "Fullname"}}:</td>
     <td class="label">
     <input type="text" name="Fullname" size="50" value="{{.U.Fullname}}"></td></tr>
 <tr><td class="label">{{tr "Password"}}:</td>
-    <td class="label"><input type="password" name="Password"></td></tr>
+    <td class="label"><input type="password" id="Password" name="Password" 
+        onkeyup="checkPassword(1,this)"></td>
+</tr>
 <tr><td class="label">{{tr "Repeat Password"}}:</td>
-    <td class="label"><input type="password" name="Password2"></td></tr>
+    <td class="label"><input type="password" id="Password2" name="Password2" 
+        onkeyup="checkPassword(1,this)"></td>
+</tr>
 <tr><td class="label">{{tr "Email"}}:</td>
-    <td class="label"><input type="text" name="Email" value="{{.U.Email}}"></td></tr>
+    <td class="label"><input type="text" id="Email" name="Email" value="{{.U.Email}}"></td></tr>
 {{end}}
 
 {{define "mailerDetails"}}
 <tr><td class="label">{{tr "Email"}}:</td>
-    <td class="label"><input type="text" name="Email" value="{{.M.User}}"></td></tr>
+    <td class="label"><input type="text" id="M.User" name="M.User" 
+                             value="{{.M.User}}"></td></tr>
 <tr><td class="label">{{tr "Email Server"}}:</td>
     <td class="label"><input type="text" name="Server" value="{{.Server}}">:<input 
                type="text" name="Port" value="{{.Port}}" size="6"></td></tr>
 <tr><td class="label">{{tr "Email Password"}}:</td>
-    <td class="label"><input type="password" name="Password"></td></tr>
+    <td class="label"><input type="password" id="mailer.Password" name="mailer.Password" 
+        onkeyup="checkPassword(4,this)"></td></tr>
 <tr><td class="label">{{tr "Repeat Password"}}:</td>
-    <td class="label"><input type="password" name="Password2"></td></tr>
+    <td class="label"><input type="password" id="mailer.Password2" name="mailer.Password2" 
+        onkeyup="checkPassword(4,this)"></td></tr>
 {{end}}
