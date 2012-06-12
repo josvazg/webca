@@ -22,12 +22,12 @@ function getElementsByClass( searchClass, domNode, tagName) {
 
 {{define "JSNavigation"}}
 	var step=1;
-	var transitions=1;
+	var help=0;
 	function next() {
 		$('Step'+step).className='shadowed';
 		$('form'+step).style.display='none';
 		step++;
-		transitions++;
+		helper();
 		$('Step'+step).className='activated';
 		$('form'+step).style.display='';
 	}
@@ -37,6 +37,12 @@ function getElementsByClass( searchClass, domNode, tagName) {
 		step--;
 		$('Step'+step).className='activated';
 		$('form'+step).style.display='';
+	}
+	function helper() {
+		if(step==2 && help==0) {
+
+			help++;
+		}
 	}
 {{end}}
 
@@ -48,8 +54,10 @@ function toggleOps(el) {
 		tr=trs[i]
 		if (tr.style.display=='none') {
 			tr.style.display='';
+			$('toggler').innerHTML='{{tr "Less"}}';
 		} else {
 			tr.style.display='none';
+			$('toggler').innerHTML='{{tr "More"}}';
 		}
 	}
 }
