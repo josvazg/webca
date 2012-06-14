@@ -23,6 +23,10 @@ const (
 	_HTML        = ".html"
 )
 
+func init() {
+	initTemplates()
+}
+
 // store for web sessions
 var store = sessions.NewCookieStore([]byte("34534askjdfhkjsd41234rrf34856"))
 
@@ -110,7 +114,6 @@ func indexOf(sa []string, index int) string {
 
 // WebCA starts the setup if there is no HTTPS config or the normal app if it is present
 func WebCA() {
-	initTemplates()
 	// load config to run the normal app or the setup wizard
 	cfg := LoadConfig()
 	if cfg == nil {
