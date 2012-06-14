@@ -74,9 +74,11 @@ func (ps *PageStatus) DisplayCertOps(crt *CertSetup) template.HTML {
 		crt.Name.Province, crt.Name.OrganizationalUnit, crt.Name.Organization, crt.Name.Country}
 	hide := ""
 	prfx := "ca"
+	duration := 1095
 	if crt == &ps.Cert {
 		hide = "style='display: none;'"
 		prfx = "cert"
+		duration = 365
 	}
 	for i, field := range fields {
 		fmt.Fprintf(ops, "<tr class='ops' %s>\n", hide)
@@ -93,6 +95,9 @@ func (ps *PageStatus) DisplayCertOps(crt *CertSetup) template.HTML {
 		"1 Year", "2 Years", "3 Years", "5 Years", "10 Years"}
 	for i, label := range durationLabels {
 		sel := ""
+		if durations[i] == duration {
+			sel = "selected='selected'"
+		}
 		fmt.Fprintf(ops, "  <option value='%v' %s>%v</option>\n", durations[i], sel, tr(label))
 	}
 	ops.WriteString("</select></tr>\n")
@@ -339,6 +344,7 @@ func setup() {
 
 // RegisterSetup register just setup handlers
 func RegisterSetup() {
+	defaultHandler = startSetup
 	http.HandleFunc("/", autoPage)
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	http.HandleFunc("/userSetup", userSetup)

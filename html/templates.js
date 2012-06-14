@@ -53,10 +53,6 @@ function getElementsByClass( searchClass, domNode, tagName) {
 					$('cert.'+field).value=$('ca.'+field).value;
 				}
 			}
-			for(i=0;i<$('cert.Duration').options.length;i++) {
-				op=$('cert.Duration').options[i];
-				op.selected=(op.value=="365");
-			}			
 		}
 		if(step==4) {
 			if($('M.User').value==null || $('M.User').value=='') {
