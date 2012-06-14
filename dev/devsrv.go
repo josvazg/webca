@@ -4,10 +4,11 @@ package main
 import (
 	"code.google.com/p/rsc/devweb/slave"
 	"github.com/josvazg/webca"
+	"net/http"
 )
 
 func main() {
-	webca.RegisterSetup()
+	webca.RegisterSetup(http.DefaultServeMux)
 	slave.Main()
 }
 

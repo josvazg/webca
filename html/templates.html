@@ -61,8 +61,7 @@
 {{define "userDetails"}}
 <tr><td class="mainlabel">{{tr "Username"}}:</td>
     <td class="mainlabel">
-    <input type="text" class="main" id="Username" name="Username" 
-           value="{{.U.Username}}"></td></tr>
+    <input type="text" class="main" id="Username" name="Username" value="{{.U.Username}}"></td></tr>
 <tr><td class="label">{{tr "Fullname"}}:</td>
     <td class="label">
     <input type="text" name="Fullname" size="50" value="{{.U.Fullname}}"></td></tr>
@@ -80,15 +79,14 @@
 
 {{define "mailerDetails"}}
 <tr><td class="label">{{tr "Email"}}:</td>
-    <td class="label"><input type="text" id="M.User" name="M.User" 
-                             value="{{.M.User}}"></td></tr>
+    <td class="label"><input type="text" id="M.User" name="M.User" value="{{.M.User}}"></td></tr>
 <tr><td class="label">{{tr "Email Server"}}:</td>
-    <td class="label"><input type="text" name="Server" value="{{.Server}}">:<input 
-               type="text" name="Port" value="{{.Port}}" size="6"></td></tr>
+    <td class="label"><input type="text" name="M.Server" value="{{.Server}}">:<input 
+        type="text" name="M.Port" size="6" value="{{.Port}}"></td></tr>
 <tr><td class="label">{{tr "Email Password"}}:</td>
-    <td class="label"><input type="password" id="mailer.Password" name="mailer.Password" 
+    <td class="label"><input type="password" id="M.Password" name="M.Password" 
         onkeyup="checkPassword(4,this)"></td></tr>
 <tr><td class="label">{{tr "Repeat Password"}}:</td>
-    <td class="label"><input type="password" id="mailer.Password2" name="mailer.Password2" 
+    <td class="label"><input type="password" id="M.Password2" name="M.Password2" 
         onkeyup="checkPassword(4,this)"></td></tr>
 {{end}}

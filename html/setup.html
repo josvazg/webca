@@ -7,13 +7,15 @@
 <a class="huge" id="Prev" style="visibility: hidden" href="javascript:" onclick="prev()">&lt;</a>
 </td>
 <td style="vertical-align: top">
+
 <div id="form1">
 <h2>{{tr "First User"}}</h2>
 <div class="explanation">
 {{tr "You'll need a user and a password in order to use this application."}} <br/>
 </div>
 <div class="notice" style="visibility: hidden" id="notice1">
-<label class="notice" id="noticeText1"><label></div>
+<label class="notice" id="noticeText1"><label>
+</div>
 <table class="form">
 {{template "userDetails" .}}
 </table>
@@ -29,7 +31,7 @@
 <label class="notice" id="noticeText2"><label></div>
 <table class="form">
 <tr><td class="mainlabel">{{tr "CA Name"}}:</td>
-    <td><input type="text" class="main" name="ca.CommonName" 
+    <td><input type="text" class="main" name="CA.CommonName" 
                                         value="{{.CA.Name.CommonName}}"></td></tr>
 {{.DisplayCertOps .CA}}
 </table>
@@ -44,7 +46,7 @@
 <label class="notice" id="noticeText3"><label></div>
 <table class="form">
 <tr><td class="mainlabel">{{tr "Certificate Name"}}:</td>
-    <td><input type="text" class="main" name="cert.CommonName" 
+    <td><input type="text" class="main" name="Cert.CommonName" 
                                         value="{{.Cert.Name.CommonName}}"></td>
 </tr>
 {{.DisplayCertOps .Cert}}
@@ -68,6 +70,7 @@
 <input type="submit" disabled="true" id="submit" name="submit" value="{{tr "Save"}}"></td><tr>
 </table>
 </div>
+
 </td>
 <td class="huge">
 <a class="huge" id="Next" href="javascript:" onclick="next()">&gt;</a>

@@ -49,8 +49,8 @@ function getElementsByClass( searchClass, domNode, tagName) {
 				    "OrganizationalUnit","Organization","Country"];
 			for(i=0;i<fields.length;i++) {
 				field=fields[i];
-				if($('cert.'+field).value==null || $('cert.'+field).value=='') {
-					$('cert.'+field).value=$('ca.'+field).value;
+				if($('Cert.'+field).value==null || $('Cert.'+field).value=='') {
+					$('Cert.'+field).value=$('CA.'+field).value;
 				}
 			}
 		}

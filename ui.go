@@ -2,8 +2,6 @@ package webca
 
 import (
 	"bytes"
-	"code.google.com/p/gorilla/context"
-	"code.google.com/p/gorilla/sessions"
 	"crypto/x509/pkix"
 	"fmt"
 	"html/template"
@@ -17,9 +15,6 @@ import (
 const (
 	SETUPADDR    = "127.0.0.1:80"
 	ALTSETUPADDR = "127.0.0.1:9090"
-	PAGESTATUS   = "pageStatus"
-	USERSETUP    = "userSetup"
-	CASETUP      = "CASetup"
 	_HTML        = ".html"
 )
 
@@ -27,8 +22,6 @@ func init() {
 	initTemplates()
 }
 
-// store for web sessions
-var store = sessions.NewCookieStore([]byte("34534askjdfhkjsd41234rrf34856"))
 
 // templates contains all web templates
 var templates *template.Template
@@ -39,32 +32,24 @@ var templateIndex map[string]*template.Template
 // defaultHandler points to the handler for '/' requests
 var defaultHandler func(w http.ResponseWriter, r *http.Request)
 
-// CertSetaup contains the config to generate a certificate
+// CertSetup contains the config to generate a certificate
 type CertSetup struct {
 	Name     pkix.Name
 	Duration int
 }
 
 // SetupWizard contains the status of the setup wizard
-type SetupWizard struct {
-	Step   int
-	CA     CertSetup
-	Cert   CertSetup
-	M      Mailer
-	Server string
-	Port   string
-	Error  string
-}
+//	CA     CertSetup
+//	Cert   CertSetup
+//	M      Mailer
 
 // PageStatus contains all values that a page and its templates need (including the SetupWizard)
-type PageStatus struct {
-	SetupWizard
-	U     User
-	Error string
-}
+//	U     User
+type PageStatus map[string]interface{}
 
 // DisplayCertOps generates the Cert common form fields for the CA or the Cert
-func (ps *PageStatus) DisplayCertOps(crt *CertSetup) template.HTML {
+func (ps PageStatus) DisplayCertOps(arg interface{}) template.HTML {
+	crt:=arg.(*CertSetup)
 	ops := bytes.NewBufferString("")
 	fields := []string{"StreetAddress", "PostalCode", "Locality", "Province",
 		"OrganizationalUnit", "Organization", "Country"}
@@ -73,11 +58,11 @@ func (ps *PageStatus) DisplayCertOps(crt *CertSetup) template.HTML {
 	fieldValues := [][]string{crt.Name.StreetAddress, crt.Name.PostalCode, crt.Name.Locality,
 		crt.Name.Province, crt.Name.OrganizationalUnit, crt.Name.Organization, crt.Name.Country}
 	hide := ""
-	prfx := "ca"
+	prfx := "CA"
 	duration := 1095
-	if crt == &ps.Cert {
+	if crt == (ps["Cert"]).(*CertSetup) {
 		hide = "style='display: none;'"
-		prfx = "cert"
+		prfx = "Cert"
 		duration = 365
 	}
 	for i, field := range fields {
@@ -150,119 +135,82 @@ func initTemplates() {
 
 // startSetup starts the setup wizard web page sequence
 func startSetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{SetupWizard: SetupWizard{Step: 1, Server: "smtp.gmail.com", Port: "587"}}
-	forwardTo(w, r, ps, "setup")
-}
-
-// userSetup saves a new user
-func userSetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{}
-	ps.Step = 1
-	ps.U.Username = r.FormValue("Username")
-	ps.U.Fullname = r.FormValue("Fullname")
-	ps.U.Email = r.FormValue("Email")
-	pwd := r.FormValue("Password")
-	pwd2 := r.FormValue("Password2")
-	if pwd == "" {
-		ps.Error = tr("Password is empty!")
-		forwardTo(w, r, ps, "user")
-		return
-	} else if pwd != pwd2 {
-		ps.Error = tr("Passwords don't match!")
-		forwardTo(w, r, ps, "user")
-		return
+	ps := PageStatus{
+		"Server": "smtp.gmail.com", 
+		"Port": "587",
+		"CA": &CertSetup{},
+		"Cert": &CertSetup{},
+		"U":&User{},
+		"M":&Mailer{},
 	}
-	ps.U.Password = pwd
-	ps.Step += 1
-	log.Println(ps.U)
-	saveInSession(w, r, USERSETUP, &ps.U)
-	forwardTo(w, r, ps, "ca")
-}
-
-// userSetup saves a new user
-func caSetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{}
-	prepareName(&ps.CA.Name)
-	ps.Step = 2
-	if errMsg := copyCertSetup(&ps.CA, r); errMsg != "" {
-		ps.Error = errMsg
-		forwardTo(w, r, ps, "ca")
-		return
+	err := templates.ExecuteTemplate(w, "setup"+_HTML, ps)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	ps.Step += 1
-	log.Println(ps.CA)
-	saveInSession(w, r, CASETUP, &ps.CA)
-	forwardTo(w, r, ps, "cert")
 }
 
-// copyCertSetup copies the certificate setup from the Requests Form
-func copyCertSetup(cs *CertSetup, r *http.Request) string {
-	cs.Name.CommonName = r.FormValue("CommonName")
-	cs.Name.StreetAddress[0] = r.FormValue("StreetAddress")
-	cs.Name.PostalCode[0] = r.FormValue("PostalCode")
-	cs.Name.Locality[0] = r.FormValue("Locality")
-	cs.Name.Province[0] = r.FormValue("Province")
-	cs.Name.OrganizationalUnit[0] = r.FormValue("OrganizationalUnit")
-	cs.Name.Organization[0] = r.FormValue("Organization")
-	cs.Name.Country[0] = r.FormValue("Country")
-	duration, err := strconv.Atoi(r.FormValue("Duration"))
+// endSetup saves the initial setup 
+func endSetup(w http.ResponseWriter, r *http.Request) {
+	user:=readUser(r)
+	certs:=make(map[string]*CertSetup,2)
+	for _,prefix := range []string{"CA","Cert"} {
+		crt,err:=readCertSetup(prefix,r)
+		if err!=nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		certs[prefix]=crt
+	}
+	mailer:=readMailer(r)
+	log.Println("user=",user)
+	log.Println("certs=",certs)
+	log.Println("mailer=",mailer)
+}
+
+// readUser reads the user data into PageStatus
+func readUser(r *http.Request) User {
+	u:=User{}
+	u.Username = r.FormValue("Username")
+	u.Fullname = r.FormValue("Fullname")
+	u.Email = r.FormValue("Email")
+	u.Password = r.FormValue("Password")
+	return u
+}
+
+// readCertSetup copies the certificate setup from the Requests Form
+func readCertSetup(prefix string, r *http.Request) (*CertSetup,error) {
+	cs:=CertSetup{}
+	prepareName(&cs.Name)
+	cs.Name.CommonName = r.FormValue(prefix+".CommonName")
+	cs.Name.StreetAddress[0] = r.FormValue(prefix+"StreetAddress")
+	cs.Name.PostalCode[0] = r.FormValue(prefix+"PostalCode")
+	cs.Name.Locality[0] = r.FormValue(prefix+"Locality")
+	cs.Name.Province[0] = r.FormValue(prefix+"Province")
+	cs.Name.OrganizationalUnit[0] = r.FormValue(prefix+"OrganizationalUnit")
+	cs.Name.Organization[0] = r.FormValue(prefix+"Organization")
+	cs.Name.Country[0] = r.FormValue(prefix+"Country")
+	duration, err := strconv.Atoi(r.FormValue(prefix+"Duration"))
 	if err != nil || duration < 0 {
-		return tr("Wrong duration!")
+		return nil,fmt.Errorf("%s: %v",tr("Wrong duration!"),err)
 	}
 	cs.Duration = duration
-	return ""
+	return &cs,nil
 }
 
-// mailerSetup configures the mailer settings
-func mailerSetup(w http.ResponseWriter, r *http.Request) {
-	ps := &PageStatus{}
-	ps.Step, _ = strconv.Atoi(r.FormValue("Step"))
-	ps.M.User = r.FormValue("Email")
-	ps.Server = r.FormValue("Server")
-	ps.Port = r.FormValue("Port")
-	pwd := r.FormValue("Password")
-	pwd2 := r.FormValue("Password2")
-	if pwd == "" || pwd != pwd2 {
-		ps.Error = tr("BadPasswd")
-		forwardTo(w, r, ps, "mailer")
-		return
+// readMailer copies the mailer settings
+func readMailer(r *http.Request) Mailer {
+	m:=Mailer{}
+	m.User = r.FormValue("M.User")
+	m.Server = r.FormValue("M.Server")
+	port := r.FormValue("M.Port")
+	if port != "" {
+		m.Server += ":" + port
 	}
-	ps.M.Server = ps.Server
-	if ps.Port != "" {
-		ps.M.Server += ":" + ps.Port
-	}
-	ps.M.Passwd = pwd
-	log.Println(ps.M)
-	context.DefaultContext.Set(r, PAGESTATUS, ps)
-	session, _ := store.Get(r, "")
-	_, ok := session.Values[PAGESTATUS]
-	if ok {
-		session.Values[PAGESTATUS].(*PageStatus).M = ps.M
-	} else {
-		session.Values[PAGESTATUS] = ps
-	}
-	// TODO finish setup and start the webca
-}
-
-// saveInSession saves the key-value pair in the session
-func saveInSession(w http.ResponseWriter, r *http.Request, key string, value interface{}) {
-	session, _ := store.Get(r, "")
-	session.Values[key] = value
-	session.Save(r, w)
-}
-
-// forwardTo passes control to the given page
-func forwardTo(w http.ResponseWriter, r *http.Request, ps *PageStatus, page string) {
-	if ps != nil {
-		context.DefaultContext.Set(r, PAGESTATUS, ps)
-	}
-	r.URL, _ = r.URL.Parse("/" + page)
-	autoPage(w, r)
+	m.Passwd = r.FormValue("M.Password")
+	return m
 }
 
 // autoPage loads current pageStatus and then displays the page given in the URL
 func autoPage(w http.ResponseWriter, r *http.Request) {
-	ps := getPageStatus(r)
 	page := page(r)
 	if page == "" {
 		defaultHandler(w, r)
@@ -272,8 +220,8 @@ func autoPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	log.Println("uri=", r.URL.RequestURI(), "page=", page, "ps=", ps)
-	err := templates.ExecuteTemplate(w, page+_HTML, ps)
+	//log.Println("uri=", r.URL.RequestURI(), "page=", page, "ps=", ps)
+	err := templates.ExecuteTemplate(w, page+_HTML, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -307,29 +255,12 @@ func page(r *http.Request) string {
 	return pg
 }
 
-// getPageStatus loads current pageStatus (from request or session)
-func getPageStatus(r *http.Request) *PageStatus {
-	ips := context.DefaultContext.Get(r, PAGESTATUS)
-	if ips == nil {
-		session, _ := store.Get(r, "webca")
-		ips = session.Values[PAGESTATUS]
-	}
-	if ips != nil {
-		return ips.(*PageStatus)
-	}
-	return &PageStatus{}
-}
-
 // setup starts the webca "setup wizard"
 func setup() {
 	log.Printf("(Warning) Starting setup, go to http://127.0.0.1/...")
 	smux := http.NewServeMux()
 	setupServer := http.Server{Addr: SETUPADDR, Handler: smux}
-	defaultHandler = startSetup
-	smux.HandleFunc("/", autoPage)
-	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	smux.HandleFunc("/userSetup", userSetup)
-	smux.HandleFunc("/caSetup", caSetup)
+	RegisterSetup(smux)
 	err := setupServer.ListenAndServe()
 	if err != nil && !strings.Contains(err.Error(), "perm") {
 		log.Fatalf("Could not start setup!: %s", err)
@@ -343,16 +274,11 @@ func setup() {
 }
 
 // RegisterSetup register just setup handlers
-func RegisterSetup() {
+func RegisterSetup(smux *http.ServeMux) {
 	defaultHandler = startSetup
-	http.HandleFunc("/", autoPage)
-	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	http.HandleFunc("/userSetup", userSetup)
-	http.HandleFunc("/caSetup", caSetup)
+	smux.HandleFunc("/", autoPage)
+	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	smux.HandleFunc("/endSetup",endSetup)
 }
 
-/*
-func main() {
-	webca()
-}*/
 
