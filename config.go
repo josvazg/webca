@@ -1,4 +1,4 @@
-package main
+package webca
 
 import (
 	"encoding/gob"

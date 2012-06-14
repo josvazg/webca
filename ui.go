@@ -1,4 +1,4 @@
-package main
+package webca
 
 import (
 	"bytes"
@@ -108,8 +108,8 @@ func indexOf(sa []string, index int) string {
 	return sa[index]
 }
 
-// webca starts the setup if there is no HTTPS config or the normal app if it is present
-func webca() {
+// WebCA starts the setup if there is no HTTPS config or the normal app if it is present
+func WebCA() {
 	initTemplates()
 	// load config to run the normal app or the setup wizard
 	cfg := LoadConfig()
@@ -334,7 +334,16 @@ func setup() {
 	}
 }
 
+// RegisterSetup register just setup handlers
+func RegisterSetup() {
+	http.HandleFunc("/", autoPage)
+	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	http.HandleFunc("/userSetup", userSetup)
+	http.HandleFunc("/caSetup", caSetup)
+}
+
+/*
 func main() {
 	webca()
-}
+}*/
 
