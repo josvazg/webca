@@ -4,10 +4,13 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -15,28 +18,6 @@ const (
 	ALTSETUPADDR = "127.0.0.1:9090"
 	_HTML        = ".html"
 )
-
-// init prepares all web templates before anything else
-func init() {
-	templates = template.New("webcaTemplates")
-	templates.Funcs(template.FuncMap{
-		// The name "title" is what the function will be called in the template text.
-		"tr": tr, "indexOf": indexOf,
-	})
-	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
-		"html/ca.html", "html/cert.html", "html/setup.html",
-		"html/templates.html", "html/templates.js", "html/style.css"))
-
-	// build templateIndex
-	templateIndex = make(map[string]*template.Template)
-
-	for _, t := range templates.Templates() {
-		//log.Println("template: ", t.Name())
-		if strings.HasSuffix(t.Name(), _HTML) {
-			templateIndex[t.Name()] = t
-		}
-	}
-}
 
 // templates contains all web templates
 var templates *template.Template
@@ -62,6 +43,34 @@ type CertSetup struct {
 // (including the SetupWizard when the setup is running)
 //	U     User
 type PageStatus map[string]interface{}
+
+// configuration holds the config lock
+var configuration sync.Mutex
+
+// configurationDone tells whether the configation has been applied or not
+var configurationDone bool
+
+// init prepares all web templates before anything else
+func init() {
+	templates = template.New("webcaTemplates")
+	templates.Funcs(template.FuncMap{
+		// The name "title" is what the function will be called in the template text.
+		"tr": tr, "indexOf": indexOf,
+	})
+	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
+		"html/ca.html", "html/cert.html", "html/setup.html",
+		"html/templates.html", "html/templates.js", "html/style.css"))
+
+	// build templateIndex
+	templateIndex = make(map[string]*template.Template)
+
+	for _, t := range templates.Templates() {
+		//log.Println("template: ", t.Name())
+		if strings.HasSuffix(t.Name(), _HTML) {
+			templateIndex[t.Name()] = t
+		}
+	}
+}
 
 // LoadCrt loads variables "Prfx" and "Crt" into PageSetup to point to the right 
 // CertSetup and its prefix and sets a default duration for that cert
@@ -133,9 +142,56 @@ func endSetup(w http.ResponseWriter, r *http.Request) {
 		certs[prefix] = crt
 	}
 	mailer := readMailer(r)
+	configuration.Lock()
+	defer configuration.Unlock()
+	if !configurationDone {
+		configure(user, certs["CA"], certs["Cert"], mailer, w, r)
+		configurationDone = true
+		fmt.Fprintln(w, "Setup OK!")
+	} else {
+		fmt.Fprintln(w, "Setup already done!")
+	}
+}
+
+// configure gets the config data and prepares certificates and the config file
+func configure(user User, ca, c *CertSetup, mailer Mailer,
+	w http.ResponseWriter, r *http.Request) {
+	log.Println("Running setup...")
 	log.Println("user=", user)
-	log.Println("certs=", certs)
+	log.Println("ca=", ca)
+	log.Println("c=", c)
 	log.Println("mailer=", mailer)
+	cacert, err := GenCACert(ca.Name, ca.Duration)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	cert, err := GenCert(cacert, c.Name.CommonName, c.Duration)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	log.Println("CA", cacert)
+	log.Println("Cert", cert)
+	copyTo(cacert.crt.Subject.CommonName+".pem", "cert.pem")
+	copyTo(cert.crt.Subject.CommonName+".pem", "cert.pem")
+	copyTo(cert.crt.Subject.CommonName+".key.pem", "key.pem")
+}
+
+// copyTo copies from file orig to file dest, appending if dest exists
+func copyTo(orig, dest string) error {
+	r, err := os.Open(orig)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	w, err := os.OpenFile(dest, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	if _, err = io.Copy(w, r); err != nil {
+		return err
+	}
+	return nil
 }
 
 // readUser reads the user data from the request
@@ -153,14 +209,14 @@ func readCertSetup(prefix string, r *http.Request) (*CertSetup, error) {
 	cs := CertSetup{}
 	prepareName(&cs.Name)
 	cs.Name.CommonName = r.FormValue(prefix + ".CommonName")
-	cs.Name.StreetAddress[0] = r.FormValue(prefix + "StreetAddress")
-	cs.Name.PostalCode[0] = r.FormValue(prefix + "PostalCode")
-	cs.Name.Locality[0] = r.FormValue(prefix + "Locality")
-	cs.Name.Province[0] = r.FormValue(prefix + "Province")
-	cs.Name.OrganizationalUnit[0] = r.FormValue(prefix + "OrganizationalUnit")
-	cs.Name.Organization[0] = r.FormValue(prefix + "Organization")
-	cs.Name.Country[0] = r.FormValue(prefix + "Country")
-	duration, err := strconv.Atoi(r.FormValue(prefix + "Duration"))
+	cs.Name.StreetAddress[0] = r.FormValue(prefix + ".StreetAddress")
+	cs.Name.PostalCode[0] = r.FormValue(prefix + ".PostalCode")
+	cs.Name.Locality[0] = r.FormValue(prefix + ".Locality")
+	cs.Name.Province[0] = r.FormValue(prefix + ".Province")
+	cs.Name.OrganizationalUnit[0] = r.FormValue(prefix + ".OrganizationalUnit")
+	cs.Name.Organization[0] = r.FormValue(prefix + ".Organization")
+	cs.Name.Country[0] = r.FormValue(prefix + ".Country")
+	duration, err := strconv.Atoi(r.FormValue(prefix + ".Duration"))
 	if err != nil || duration < 0 {
 		return nil, fmt.Errorf("%s: %v", tr("Wrong duration!"), err)
 	}

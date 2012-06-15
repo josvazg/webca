@@ -6,9 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	//"errors"
 	"fmt"
-	//"flag"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -18,9 +16,9 @@ import (
 )
 
 const (
-	CERT_SUFFIX  = ".pem"
-	KEY_SUFFIX   = ".key.pem"
-	SECS_IN_YEAR = 365 * 24 * 60 * 60
+	CERT_SUFFIX = ".pem"
+	KEY_SUFFIX  = ".key.pem"
+	SECS_IN_DAY = 24 * 60 * 60
 )
 
 type Cert struct {
@@ -35,19 +33,19 @@ type CertTree struct {
 	order  []*Cert            // Ordered list of certs
 }
 
-func GenCACert(name pkix.Name, years int) (*Cert, error) {
-	return genCert(nil, name, years)
+func GenCACert(name pkix.Name, days int) (*Cert, error) {
+	return genCert(nil, name, days)
 }
 
-func GenCert(parent *Cert, cert string, years int) (*Cert, error) {
+func GenCert(parent *Cert, cert string, days int) (*Cert, error) {
 	name := copyName(parent.crt.Subject)
 	name.CommonName = cert
-	return genCert(parent, name, years)
+	return genCert(parent, name, days)
 }
 
 func RenewCert(cert *Cert) (*Cert, error) {
-	years := int((cert.crt.NotAfter.Unix() - cert.crt.NotBefore.Unix()) / SECS_IN_YEAR)
-	return genCert(cert.parent, cert.crt.Subject, years)
+	days := int((cert.crt.NotAfter.Unix() - cert.crt.NotBefore.Unix()) / SECS_IN_DAY)
+	return genCert(cert.parent, cert.crt.Subject, days)
 }
 
 func copyName(name pkix.Name) pkix.Name {
@@ -74,7 +72,7 @@ func prepareName(name *pkix.Name) {
 	}
 }
 
-func genCert(p *Cert, name pkix.Name, years int) (*Cert, error) {
+func genCert(p *Cert, name pkix.Name, days int) (*Cert, error) {
 	t := &Cert{}
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
@@ -93,7 +91,7 @@ func genCert(p *Cert, name pkix.Name, years int) (*Cert, error) {
 		SerialNumber: serial,
 		Subject:      name,
 		NotBefore:    now.Add(-5 * time.Minute).UTC(),
-		NotAfter:     now.AddDate(years, 0, 0).UTC(), // valid for years
+		NotAfter:     now.AddDate(0, 0, days).UTC(), // valid for days
 
 		SubjectKeyId: ski,
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
@@ -305,11 +303,11 @@ func main() {
 			Province:           []string{"Acme County"},
 			OrganizationalUnit: []string{"Acme Labs"},
 			Organization:       []string{"Acme"},
-			Country:            []string{"AcmeLand"}}, 4)
+			Country:            []string{"AcmeLand"}}, 1095)
 		handleFatal(err)
 		certTree.addCert(ca)
 		for _, crtName := range []string{"server.acme.com", "tys14ubu.rfranco.com"} {
-			crt, err := GenCert(ca, crtName, 2)
+			crt, err := GenCert(ca, crtName, 365)
 			handleFatal(err)
 			certTree.addCert(crt)
 		}

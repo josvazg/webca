@@ -17,17 +17,21 @@ type User struct {
 }
 
 type config struct {
-	Mailer
-	advance   int // days before the cert. expires that the notification will be sent
-	users     map[string]*User
-	certs     CertTree
-	user2cert map[string]string
-	cert2user map[string]string
+	mailer  *Mailer
+	advance int // days before the cert. expires that the notification will be sent
+	users   map[string]*User
+	certs   *CertTree
 }
 
 type Configurer interface {
 	tlsFiles() (cert, key string, ok bool)
 	save()
+}
+
+func NewConfig(u User, certs *CertTree, m Mailer) Configurer {
+	cfg := &config{&m, 15, make(map[string]*User), certs}
+	cfg.users[u.Username] = &u
+	return cfg
 }
 
 func LoadConfig() Configurer {
