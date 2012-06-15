@@ -1,13 +1,11 @@
 package webca
 
 import (
-	"bytes"
 	"crypto/x509/pkix"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	//"os"
 	"strconv"
 	"strings"
 )
@@ -18,10 +16,27 @@ const (
 	_HTML        = ".html"
 )
 
+// init prepares all web templates before anything else
 func init() {
-	initTemplates()
-}
+	templates = template.New("webcaTemplates")
+	templates.Funcs(template.FuncMap{
+		// The name "title" is what the function will be called in the template text.
+		"tr": tr, "indexOf": indexOf,
+	})
+	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
+		"html/ca.html", "html/cert.html", "html/setup.html",
+		"html/templates.html", "html/templates.js", "html/style.css"))
 
+	// build templateIndex
+	templateIndex = make(map[string]*template.Template)
+
+	for _, t := range templates.Templates() {
+		//log.Println("template: ", t.Name())
+		if strings.HasSuffix(t.Name(), _HTML) {
+			templateIndex[t.Name()] = t
+		}
+	}
+}
 
 // templates contains all web templates
 var templates *template.Template
@@ -38,55 +53,34 @@ type CertSetup struct {
 	Duration int
 }
 
-// SetupWizard contains the status of the setup wizard
+// SetupWizard contains the status of the setup wizard and may be included in the PageStatus Map
 //	CA     CertSetup
 //	Cert   CertSetup
 //	M      Mailer
 
-// PageStatus contains all values that a page and its templates need (including the SetupWizard)
+// PageStatus contains all values that a page and its templates need 
+// (including the SetupWizard when the setup is running)
 //	U     User
 type PageStatus map[string]interface{}
 
-// DisplayCertOps generates the Cert common form fields for the CA or the Cert
-func (ps PageStatus) DisplayCertOps(arg interface{}) template.HTML {
-	crt:=arg.(*CertSetup)
-	ops := bytes.NewBufferString("")
-	fields := []string{"StreetAddress", "PostalCode", "Locality", "Province",
-		"OrganizationalUnit", "Organization", "Country"}
-	labels := []string{"Street Address", "Postal Code", "Locality", "Province",
-		"Organizational Unit", "Organization", "Country"}
-	fieldValues := [][]string{crt.Name.StreetAddress, crt.Name.PostalCode, crt.Name.Locality,
-		crt.Name.Province, crt.Name.OrganizationalUnit, crt.Name.Organization, crt.Name.Country}
-	hide := ""
-	prfx := "CA"
-	duration := 1095
-	if crt == (ps["Cert"]).(*CertSetup) {
-		hide = "style='display: none;'"
-		prfx = "Cert"
-		duration = 365
+// LoadCrt loads variables "Prfx" and "Crt" into PageSetup to point to the right 
+// CertSetup and its prefix and sets a default duration for that cert
+func (ps PageStatus) LoadCrt(arg interface{}, prfx string, defaultDuration int) string {
+	cs := arg.(*CertSetup)
+	ps["Crt"] = cs
+	ps["Prfx"] = prfx
+	cs.Duration = defaultDuration
+	return ""
+}
+
+// IsDuration returns whether or not the given duration is the selected one on the loaded Crt
+func (ps PageStatus) IsSelected(duration int) bool {
+	crt := ps["Crt"]
+	if crt == nil {
+		return false
 	}
-	for i, field := range fields {
-		fmt.Fprintf(ops, "<tr class='ops' %s>\n", hide)
-		fmt.Fprintf(ops, "<td class='label'>%s:</td>\n", tr(labels[i]))
-		fmt.Fprintf(ops, "<td><input type='text' id='%s.%s' name='%s.%s'\n",
-			prfx, field, prfx, field)
-		fmt.Fprintf(ops, "            value='%s'></td></tr>\n", indexOf(fieldValues[i], 0))
-	}
-	fmt.Fprintf(ops, "<tr class='ops' %s><td class='label'>%s:</td>\n",
-		hide, tr("Duration in Days"))
-	fmt.Fprintf(ops, "<td><select id='%s.Duration' name='%s.Duration' %s>\n", prfx, prfx)
-	durations := []int{30, 60, 90, 180, 365, 730, 1095, 1826, 3826}
-	durationLabels := []string{"1 Month", "2 Months", "3 Months", "6 Months",
-		"1 Year", "2 Years", "3 Years", "5 Years", "10 Years"}
-	for i, label := range durationLabels {
-		sel := ""
-		if durations[i] == duration {
-			sel = "selected='selected'"
-		}
-		fmt.Fprintf(ops, "  <option value='%v' %s>%v</option>\n", durations[i], sel, tr(label))
-	}
-	ops.WriteString("</select></tr>\n")
-	return template.HTML(ops.String())
+	cs := crt.(*CertSetup)
+	return cs.Duration == duration
 }
 
 // tr is the app translation function
@@ -111,37 +105,15 @@ func WebCA() {
 	}
 }
 
-// initTemplates initializes the web templates
-func initTemplates() {
-	templates = template.New("webcaTemplates")
-	templates.Funcs(template.FuncMap{
-		// The name "title" is what the function will be called in the template text.
-		"tr": tr, "indexOf": indexOf,
-	})
-	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
-		"html/ca.html", "html/cert.html", "html/setup.html",
-		"html/templates.html", "html/templates.js", "html/style.css"))
-
-	// build templateIndex
-	templateIndex = make(map[string]*template.Template)
-
-	for _, t := range templates.Templates() {
-		//log.Println("template: ", t.Name())
-		if strings.HasSuffix(t.Name(), _HTML) {
-			templateIndex[t.Name()] = t
-		}
-	}
-}
-
-// startSetup starts the setup wizard web page sequence
+// startSetup starts the setup wizard form
 func startSetup(w http.ResponseWriter, r *http.Request) {
 	ps := PageStatus{
-		"Server": "smtp.gmail.com", 
-		"Port": "587",
-		"CA": &CertSetup{},
-		"Cert": &CertSetup{},
-		"U":&User{},
-		"M":&Mailer{},
+		"Server": "smtp.gmail.com",
+		"Port":   "587",
+		"CA":     &CertSetup{},
+		"Cert":   &CertSetup{},
+		"U":      &User{},
+		"M":      &Mailer{},
 	}
 	err := templates.ExecuteTemplate(w, "setup"+_HTML, ps)
 	if err != nil {
@@ -149,26 +121,26 @@ func startSetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// endSetup saves the initial setup 
+// endSetup checks and saves the initial setup from the wizard form
 func endSetup(w http.ResponseWriter, r *http.Request) {
-	user:=readUser(r)
-	certs:=make(map[string]*CertSetup,2)
-	for _,prefix := range []string{"CA","Cert"} {
-		crt,err:=readCertSetup(prefix,r)
-		if err!=nil {
+	user := readUser(r)
+	certs := make(map[string]*CertSetup, 2)
+	for _, prefix := range []string{"CA", "Cert"} {
+		crt, err := readCertSetup(prefix, r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		certs[prefix]=crt
+		certs[prefix] = crt
 	}
-	mailer:=readMailer(r)
-	log.Println("user=",user)
-	log.Println("certs=",certs)
-	log.Println("mailer=",mailer)
+	mailer := readMailer(r)
+	log.Println("user=", user)
+	log.Println("certs=", certs)
+	log.Println("mailer=", mailer)
 }
 
-// readUser reads the user data into PageStatus
+// readUser reads the user data from the request
 func readUser(r *http.Request) User {
-	u:=User{}
+	u := User{}
 	u.Username = r.FormValue("Username")
 	u.Fullname = r.FormValue("Fullname")
 	u.Email = r.FormValue("Email")
@@ -176,29 +148,29 @@ func readUser(r *http.Request) User {
 	return u
 }
 
-// readCertSetup copies the certificate setup from the Requests Form
-func readCertSetup(prefix string, r *http.Request) (*CertSetup,error) {
-	cs:=CertSetup{}
+// readCertSetup reads the certificate setup from the request
+func readCertSetup(prefix string, r *http.Request) (*CertSetup, error) {
+	cs := CertSetup{}
 	prepareName(&cs.Name)
-	cs.Name.CommonName = r.FormValue(prefix+".CommonName")
-	cs.Name.StreetAddress[0] = r.FormValue(prefix+"StreetAddress")
-	cs.Name.PostalCode[0] = r.FormValue(prefix+"PostalCode")
-	cs.Name.Locality[0] = r.FormValue(prefix+"Locality")
-	cs.Name.Province[0] = r.FormValue(prefix+"Province")
-	cs.Name.OrganizationalUnit[0] = r.FormValue(prefix+"OrganizationalUnit")
-	cs.Name.Organization[0] = r.FormValue(prefix+"Organization")
-	cs.Name.Country[0] = r.FormValue(prefix+"Country")
-	duration, err := strconv.Atoi(r.FormValue(prefix+"Duration"))
+	cs.Name.CommonName = r.FormValue(prefix + ".CommonName")
+	cs.Name.StreetAddress[0] = r.FormValue(prefix + "StreetAddress")
+	cs.Name.PostalCode[0] = r.FormValue(prefix + "PostalCode")
+	cs.Name.Locality[0] = r.FormValue(prefix + "Locality")
+	cs.Name.Province[0] = r.FormValue(prefix + "Province")
+	cs.Name.OrganizationalUnit[0] = r.FormValue(prefix + "OrganizationalUnit")
+	cs.Name.Organization[0] = r.FormValue(prefix + "Organization")
+	cs.Name.Country[0] = r.FormValue(prefix + "Country")
+	duration, err := strconv.Atoi(r.FormValue(prefix + "Duration"))
 	if err != nil || duration < 0 {
-		return nil,fmt.Errorf("%s: %v",tr("Wrong duration!"),err)
+		return nil, fmt.Errorf("%s: %v", tr("Wrong duration!"), err)
 	}
 	cs.Duration = duration
-	return &cs,nil
+	return &cs, nil
 }
 
-// readMailer copies the mailer settings
+// readMailer reads the mailer config from the request
 func readMailer(r *http.Request) Mailer {
-	m:=Mailer{}
+	m := Mailer{}
 	m.User = r.FormValue("M.User")
 	m.Server = r.FormValue("M.Server")
 	port := r.FormValue("M.Port")
@@ -209,7 +181,7 @@ func readMailer(r *http.Request) Mailer {
 	return m
 }
 
-// autoPage loads current pageStatus and then displays the page given in the URL
+// autoPage displays the page specified in the URL that matches a template
 func autoPage(w http.ResponseWriter, r *http.Request) {
 	page := page(r)
 	if page == "" {
@@ -227,7 +199,7 @@ func autoPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// checkPage tells whether the given page does really exist or not
+// checkPage tells whether the given page does have a template
 func checkPage(page string) bool {
 	if page == "templates" {
 		return false
@@ -236,7 +208,7 @@ func checkPage(page string) bool {
 	return ok
 }
 
-// page extracts the page the user whats to go to from the URL
+// page extracts the page the user wants to go to from the URL
 func page(r *http.Request) string {
 	pg := r.URL.RequestURI()
 	if strings.Contains(pg, "?") {
@@ -278,7 +250,6 @@ func RegisterSetup(smux *http.ServeMux) {
 	defaultHandler = startSetup
 	smux.HandleFunc("/", autoPage)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	smux.HandleFunc("/endSetup",endSetup)
+	smux.HandleFunc("/endSetup", endSetup)
 }
-
 

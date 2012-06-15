@@ -67,34 +67,36 @@ function getElementsByClass( searchClass, domNode, tagName) {
 
 {{define "JSToggleOps"}}
 {{template "JSByClass"}}
-function toggleOps(el) {
+function toggleOps() {
+	el=$('form3')
 	trs=getElementsByClass("ops",el,"tr");
 	for (i=0;i<trs.length;i++) {
 		tr=trs[i]
 		if (tr.style.display=='none') {
 			tr.style.display='';
-			$('toggler').innerHTML='{{tr "Less"}}';
+			$('toggler').innerHTML='{{tr "Less"}}...';
 		} else {
 			tr.style.display='none';
-			$('toggler').innerHTML='{{tr "More"}}';
+			$('toggler').innerHTML='{{tr "More"}}...';
 		}
 	}
 }
+document.body.onload=toggleOps;
 {{end}}
 
 {{define "JSCheckpasswd"}}
-function showStepError(step, msg) {
-	$('noticeText'+step).innerHTML=msg;
-	$('notice'+step).style.visibility='';
+function showError(msg) {
+	$('noticeText').innerHTML=msg;
+	$('notice').style.visibility='';
 	$('submit').disabled=true;
 }
-function hideStepError(currStep) {
-	$('notice'+step).style.visibility='hidden';
+function hideError() {
+	$('notice').style.visibility='hidden';
 	$('submit').disabled=false;
 }
-function checkPassword(currStep,el) {
+function checkPassword(el) {
 	if (el.value=="") {
-		showStepError(currStep,'{{tr "Type some password!"}}');
+		showError('{{tr "Type some password!"}}');
 		return
 	}
 	oid=el.id;
@@ -104,9 +106,9 @@ function checkPassword(currStep,el) {
 		oid=oid+"2";
 	}
 	if ($(oid).value!=el.value) {
-		showStepError(currStep,'{{tr "Passwords don't match!"}}');
+		showError('{{tr "Passwords don't match!"}}');
 		return
 	}
-	hideStepError(currStep);
+	hideError();
 }
 {{end}}

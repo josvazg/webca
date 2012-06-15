@@ -67,14 +67,59 @@
     <input type="text" name="Fullname" size="50" value="{{.U.Fullname}}"></td></tr>
 <tr><td class="label">{{tr "Password"}}:</td>
     <td class="label"><input type="password" id="Password" name="Password" 
-        onkeyup="checkPassword(1,this)"></td>
+        onkeyup="checkPassword(this)"></td>
 </tr>
 <tr><td class="label">{{tr "Repeat Password"}}:</td>
     <td class="label"><input type="password" id="Password2" name="Password2" 
-        onkeyup="checkPassword(1,this)"></td>
+        onkeyup="checkPassword(this)"></td>
 </tr>
 <tr><td class="label">{{tr "Email"}}:</td>
     <td class="label"><input type="text" id="Email" name="Email" value="{{.U.Email}}"></td></tr>
+{{end}}
+
+{{define "certCommonFields"}}
+<tr class="ops"><td class="label">{{tr "Street"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.StreetAddress" id="{{.Prfx}}.StreetAddress"  
+                           value="{{indexOf .Crt.Name.StreetAddress 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Postal Code"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.PostalCode" id="{{.Prfx}}.PostalCode"  
+                           value="{{indexOf .Crt.Name.PostalCode 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Locality"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.Locality" id="{{.Prfx}}.Locality" 
+                           value="{{indexOf .Crt.Name.Locality 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Province"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.Province" id="{{.Prfx}}.Province"  
+                           value="{{indexOf .Crt.Name.Province 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Org. Unit"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.OrganizationalUnit" id="{{.Prfx}}.OrganizationalUnit"  
+                           value="{{indexOf .Crt.Name.OrganizationalUnit 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Organization"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.Organization" id="{{.Prfx}}.Organization"
+                           value="{{indexOf .Crt.Name.Organization 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Country"}}:</td>
+    <td><input type="text" name="{{.Prfx}}.Country" id="{{.Prfx}}.Country"
+                           value="{{indexOf .Crt.Name.Country 0}}"></td></tr>
+<tr class="ops"><td class="label">{{tr "Duration in Days"}}:</td>
+    <td><select id="{{.Prfx}}.Duration" name="{{.Prfx}}.Duration">
+            <option value='30' 
+                    {{if .IsSelected 30}}selected="selected"{{end}}>{{tr "1 Month"}}</option>
+            <option value='60' 
+                    {{if .IsSelected 60}}selected="selected"{{end}}>{{tr "2 Months"}}</option>
+            <option value='90' 
+                    {{if .IsSelected 90}}selected="selected"{{end}}>{{tr "3 Months"}}</option>
+            <option value='180' 
+                    {{if .IsSelected 180}}selected="selected"{{end}}>{{tr "6 Months"}}</option>
+            <option value='365' 
+                    {{if .IsSelected 365}}selected="selected"{{end}}>{{tr "1 Year"}}</option>
+            <option value='730' 
+                    {{if .IsSelected 750}}selected="selected"{{end}}>{{tr "2 Years"}}</option>
+            <option value='1095' 
+                    {{if .IsSelected 1095}}selected="selected"{{end}}>{{tr "3 Years"}}</option>
+            <option value='1825' 
+                    {{if .IsSelected 1825}}selected="selected"{{end}}>{{tr "5 Years"}}</option>
+            <option value='3650' 
+                    {{if .IsSelected 3650}}selected="selected"{{end}}>{{tr "10 Years"}}</option>
+	</select></td></tr>
 {{end}}
 
 {{define "mailerDetails"}}
@@ -85,8 +130,8 @@
         type="text" name="M.Port" size="6" value="{{.Port}}"></td></tr>
 <tr><td class="label">{{tr "Email Password"}}:</td>
     <td class="label"><input type="password" id="M.Password" name="M.Password" 
-        onkeyup="checkPassword(4,this)"></td></tr>
+        onkeyup="checkPassword(this)"></td></tr>
 <tr><td class="label">{{tr "Repeat Password"}}:</td>
     <td class="label"><input type="password" id="M.Password2" name="M.Password2" 
-        onkeyup="checkPassword(4,this)"></td></tr>
+        onkeyup="checkPassword(this)"></td></tr>
 {{end}}

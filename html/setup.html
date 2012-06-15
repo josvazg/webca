@@ -8,13 +8,14 @@
 </td>
 <td style="vertical-align: top">
 
+<div class="notice" style="visibility: hidden" id="notice">
+<label class="notice" id="noticeText"><label>
+</div>
+
 <div id="form1">
 <h2>{{tr "First User"}}</h2>
 <div class="explanation">
 {{tr "You'll need a user and a password in order to use this application."}} <br/>
-</div>
-<div class="notice" style="visibility: hidden" id="notice1">
-<label class="notice" id="noticeText1"><label>
 </div>
 <table class="form">
 {{template "userDetails" .}}
@@ -27,13 +28,12 @@
 {{tr "We cannot run our own Web CA on an unsecure http:// connection like this!"}}<p>
 {{tr "Lets create the certificates right now..."}}
 </div>
-<div class="notice" style="visibility: hidden" id="notice2">
-<label class="notice" id="noticeText2"><label></div>
 <table class="form">
 <tr><td class="mainlabel">{{tr "CA Name"}}:</td>
     <td><input type="text" class="main" name="CA.CommonName" 
                                         value="{{.CA.Name.CommonName}}"></td></tr>
-{{.DisplayCertOps .CA}}
+{{.LoadCrt .CA "CA" 1095}}
+{{template "certCommonFields" .}}
 </table>
 </div>
 
@@ -42,16 +42,15 @@
 <div class="explanation">
 {{tr "We now need a certificate for the WebCA server itself..."}}
 </div>
-<div class="notice" style="visibility: hidden" id="notice3">
-<label class="notice" id="noticeText3"><label></div>
 <table class="form">
 <tr><td class="mainlabel">{{tr "Certificate Name"}}:</td>
     <td><input type="text" class="main" name="Cert.CommonName" 
                                         value="{{.Cert.Name.CommonName}}"></td>
 </tr>
-{{.DisplayCertOps .Cert}}
+{{.LoadCrt .Cert "Cert" 365}}
+{{template "certCommonFields" .}}
 <tr><td colspan="2">
-<a id="toggler" onclick="toggleOps($('form3'))" class="control">{{tr "More"}}...</a>
+<a id="toggler" onclick="toggleOps()" class="control">{{tr "More"}}...</a>
 </td></tr>
 </table>
 </div>
@@ -62,8 +61,6 @@
 {{tr "Finally, if you want to get email notifications before your certificates expires,"}}<p/>
 {{tr "we need to configure a sending email account"}}
 </div>
-<div class="notice" style="visibility: hidden" id="notice4">
-<label class="notice" id="noticeText4"><label></div>
 <table class="form">
 {{template "mailerDetails" .}}
 <tr><td colspan="2">
