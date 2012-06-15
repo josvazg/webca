@@ -145,9 +145,10 @@ func endSetup(w http.ResponseWriter, r *http.Request) {
 	configuration.Lock()
 	defer configuration.Unlock()
 	if !configurationDone {
-		configure(user, certs["CA"], certs["Cert"], mailer, w, r)
-		configurationDone = true
-		fmt.Fprintln(w, "Setup OK!")
+		configurationDone = configure(user, certs["CA"], certs["Cert"], mailer, w, r)
+		if configurationDone {
+			fmt.Fprintln(w, "Setup OK!")
+		}
 	} else {
 		fmt.Fprintln(w, "Setup already done!")
 	}
@@ -155,7 +156,7 @@ func endSetup(w http.ResponseWriter, r *http.Request) {
 
 // configure gets the config data and prepares certificates and the config file
 func configure(user User, ca, c *CertSetup, mailer Mailer,
-	w http.ResponseWriter, r *http.Request) {
+	w http.ResponseWriter, r *http.Request) bool {
 	log.Println("Running setup...")
 	log.Println("user=", user)
 	log.Println("ca=", ca)
@@ -164,16 +165,19 @@ func configure(user User, ca, c *CertSetup, mailer Mailer,
 	cacert, err := GenCACert(ca.Name, ca.Duration)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
 	}
 	cert, err := GenCert(cacert, c.Name.CommonName, c.Duration)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
 	}
 	log.Println("CA", cacert)
 	log.Println("Cert", cert)
-	copyTo(cacert.crt.Subject.CommonName+".pem", "cert.pem")
-	copyTo(cert.crt.Subject.CommonName+".pem", "cert.pem")
-	copyTo(cert.crt.Subject.CommonName+".key.pem", "key.pem")
+	copyTo(cacert.crt.Subject.CommonName+".pem", WEBCA_FILE)
+	copyTo(cert.crt.Subject.CommonName+".pem", WEBCA_FILE)
+	copyTo(cert.crt.Subject.CommonName+".key.pem", WEBCA_KEY)
+	return true
 }
 
 // copyTo copies from file orig to file dest, appending if dest exists
