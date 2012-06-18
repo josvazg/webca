@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"log"
 	"os"
+	"sync"
 )
 
 const (
@@ -12,29 +13,42 @@ const (
 	WEBCA_KEY  = "webca.key.pem"
 )
 
+// oneCfg ensures serialized access to configuration
+var oneCfg sync.Mutex
+
+// User contains the App's User details
 type User struct {
 	Username, Fullname, Password, Email string
 }
 
+// config contains the App's Configuration
 type config struct {
-	mailer  *Mailer
-	advance int // days before the cert. expires that the notification will be sent
-	users   map[string]*User
-	certs   *CertTree
+	Mailer  *Mailer
+	Advance int // days before the cert. expires that the notification will be sent
+	Users   map[string]*User
+	Certs   *CertTree
 }
 
+// Configurer is the interface to access and user Configuration
 type Configurer interface {
-	tlsFiles() (cert, key string, ok bool)
-	save()
+	save() error
 }
 
-func NewConfig(u User, certs *CertTree, m Mailer) Configurer {
+// New Config obtains a new Config
+func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) Configurer {
+	certs := newCertTree()
+	certs.addCert(cacert)
+	certs.addCert(cert)
 	cfg := &config{&m, 15, make(map[string]*User), certs}
-	cfg.users[u.Username] = &u
+	cfg.Users[u.Username] = &u
 	return cfg
 }
 
+// LoadConfig (re)loads a config
+// (It needs to be thread safe)
 func LoadConfig() Configurer {
+	oneCfg.Lock()
+	defer oneCfg.Unlock()
 	_, err := os.Stat(WEBCA_CFG)
 	if os.IsNotExist(err) {
 		return nil
@@ -52,29 +66,23 @@ func LoadConfig() Configurer {
 	return &cfg
 }
 
-func (cfg *config) save() {
+// save puts the current config into persistent storage
+// (It needs to be thread safe)
+func (cfg *config) save() error {
+	oneCfg.Lock()
+	defer oneCfg.Unlock()
 	f, err := os.OpenFile(WEBCA_CFG, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	handleFatal(err)
+	if err != nil {
+		log.Println("can't open")
+		return err
+	}
 	defer f.Close()
 	enc := gob.NewEncoder(f)
 	err = enc.Encode(cfg)
-	handleFatal(err)
-}
-
-func (cfg *config) tlsFiles() (cert, key string, ok bool) {
-	ok = true
-	cert = WEBCA_FILE
-	_, err := os.Stat(cert)
-	if os.IsNotExist(err) {
-		cert = ""
-		ok = false
+	if err != nil {
+		log.Println("can't save")
+		return err
 	}
-	key = WEBCA_FILE
-	_, err = os.Stat(key)
-	if os.IsNotExist(err) {
-		key = ""
-		ok = false
-	}
-	return cert, key, ok
+	return nil
 }
 

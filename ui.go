@@ -14,9 +14,12 @@ import (
 )
 
 const (
-	SETUPADDR    = "127.0.0.1:80"
-	ALTSETUPADDR = "127.0.0.1:9090"
-	_HTML        = ".html"
+	ADDR      = ""
+	SETUPADDR = "127.0.0.1"
+	PORT      = 443
+	SETUPPORT = 80
+	ALTPORT   = 8000
+	_HTML     = ".html"
 )
 
 // templates contains all web templates
@@ -34,21 +37,20 @@ type CertSetup struct {
 	Duration int
 }
 
+// PageStatus contains all values that a page and its templates need 
+// (including the SetupWizard when the setup is running)
+//	U      User
 // SetupWizard contains the status of the setup wizard and may be included in the PageStatus Map
 //	CA     CertSetup
 //	Cert   CertSetup
 //	M      Mailer
-
-// PageStatus contains all values that a page and its templates need 
-// (including the SetupWizard when the setup is running)
-//	U     User
 type PageStatus map[string]interface{}
 
-// configuration holds the config lock
-var configuration sync.Mutex
+// oneSetup holds the setup lock
+var oneSetup sync.Mutex
 
-// configurationDone tells whether the configation has been applied or not
-var configurationDone bool
+// setupDone tells whether the configation has been applied or not
+var setupDone bool
 
 // init prepares all web templates before anything else
 func init() {
@@ -105,17 +107,51 @@ func indexOf(sa []string, index int) string {
 	return sa[index]
 }
 
-// WebCA starts the setup if there is no HTTPS config or the normal app if it is present
+// WebCA starts the prepares and serves the WebApp 
 func WebCA() {
-	// load config to run the normal app or the setup wizard
-	cfg := LoadConfig()
-	if cfg == nil {
-		setup()
+	addr := PrepareServer()
+	log.Printf("Go to http://" + addr + "/...")
+	err := http.ListenAndServe(addr, nil)
+	if err != nil {
+		log.Printf("Could not start server on address '"+addr+"'!: %s", err)
+	}
+	addr = alternateAddress(addr)
+	log.Printf("(Warning) Failed to listen, go to http://" + addr + "/...")
+	err = http.ListenAndServe(addr, nil)
+	if err != nil {
+		log.Fatalf("Could not start!: %s", err)
 	}
 }
 
-// startSetup starts the setup wizard form
-func startSetup(w http.ResponseWriter, r *http.Request) {
+// alternateAddress returns the alternate address by changing or adding the port to ALTPORT
+func alternateAddress(addr string) string {
+	if strings.Contains(addr, ":") {
+		parts := strings.Split(addr, ":")
+		addr = parts[0]
+	}
+	return fmt.Sprintf("%s:%v", addr, ALTPORT)
+}
+
+// prepareServer prepares the Web handlers for the setup wizard if there is no HTTPS config or 
+// the normal app if the app is already configured
+func PrepareServer() string {
+	// load config...
+	cfg := LoadConfig()
+	if cfg == nil { // if config is null then run the setup
+		addr := fmt.Sprintf("%s:%v", SETUPADDR, SETUPPORT)
+		log.Printf("(Warning) Starting WebCA setup...")
+		http.HandleFunc("/", showSetup)
+		http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+		http.HandleFunc("/setup", setup)
+		return addr
+	}
+	// otherwise start the normal app
+	log.Printf("WebCA normal startup...\n")
+	return ADDR
+}
+
+// showSetup shows the setup wizard form
+func showSetup(w http.ResponseWriter, r *http.Request) {
 	ps := PageStatus{
 		"Server": "smtp.gmail.com",
 		"Port":   "587",
@@ -130,8 +166,8 @@ func startSetup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// endSetup checks and saves the initial setup from the wizard form
-func endSetup(w http.ResponseWriter, r *http.Request) {
+// setup checks and saves the initial setup from the wizard form
+func setup(w http.ResponseWriter, r *http.Request) {
 	user := readUser(r)
 	certs := make(map[string]*CertSetup, 2)
 	for _, prefix := range []string{"CA", "Cert"} {
@@ -142,42 +178,36 @@ func endSetup(w http.ResponseWriter, r *http.Request) {
 		certs[prefix] = crt
 	}
 	mailer := readMailer(r)
-	configuration.Lock()
-	defer configuration.Unlock()
-	if !configurationDone {
-		configurationDone = configure(user, certs["CA"], certs["Cert"], mailer, w, r)
-		if configurationDone {
-			fmt.Fprintln(w, "Setup OK!")
+	log.Printf("Checking whether to do setup or not...")
+	oneSetup.Lock()
+	defer oneSetup.Unlock()
+	if !setupDone {
+		ca, c := certs["CA"], certs["Cert"]
+		log.Printf("Running setup...\nuser=%s\nca=%s\nc=%s\nmailer%s\n", user, ca, c, mailer)
+		cacert, err := GenCACert(ca.Name, ca.Duration)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
+		cert, err := GenCert(cacert, c.Name.CommonName, c.Duration)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("CA=%s\nCert=%s\n", cacert, cert)
+		copyTo(cacert.Crt.Subject.CommonName+".pem", WEBCA_FILE)
+		copyTo(cert.Crt.Subject.CommonName+".pem", WEBCA_FILE)
+		copyTo(cert.Crt.Subject.CommonName+".key.pem", WEBCA_KEY)
+		log.Printf("Saving config...")
+		if err = NewConfig(user, cacert, cert, mailer).save(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintln(w, "Setup OK!")
 	} else {
 		fmt.Fprintln(w, "Setup already done!")
 	}
-}
-
-// configure gets the config data and prepares certificates and the config file
-func configure(user User, ca, c *CertSetup, mailer Mailer,
-	w http.ResponseWriter, r *http.Request) bool {
-	log.Println("Running setup...")
-	log.Println("user=", user)
-	log.Println("ca=", ca)
-	log.Println("c=", c)
-	log.Println("mailer=", mailer)
-	cacert, err := GenCACert(ca.Name, ca.Duration)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false
-	}
-	cert, err := GenCert(cacert, c.Name.CommonName, c.Duration)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return false
-	}
-	log.Println("CA", cacert)
-	log.Println("Cert", cert)
-	copyTo(cacert.crt.Subject.CommonName+".pem", WEBCA_FILE)
-	copyTo(cert.crt.Subject.CommonName+".pem", WEBCA_FILE)
-	copyTo(cert.crt.Subject.CommonName+".key.pem", WEBCA_KEY)
-	return true
+	fmt.Fprintln(w, "We are done restart the app!")
 }
 
 // copyTo copies from file orig to file dest, appending if dest exists
@@ -285,31 +315,5 @@ func page(r *http.Request) string {
 		pg = strings.Split(pg, ".")[0]
 	}
 	return pg
-}
-
-// setup starts the webca "setup wizard"
-func setup() {
-	log.Printf("(Warning) Starting setup, go to http://127.0.0.1/...")
-	smux := http.NewServeMux()
-	setupServer := http.Server{Addr: SETUPADDR, Handler: smux}
-	RegisterSetup(smux)
-	err := setupServer.ListenAndServe()
-	if err != nil && !strings.Contains(err.Error(), "perm") {
-		log.Fatalf("Could not start setup!: %s", err)
-	}
-	setupServer.Addr = ALTSETUPADDR
-	log.Printf("(Warning) Failed to listen on port :80 go to http://" + ALTSETUPADDR + "/...")
-	err = setupServer.ListenAndServe()
-	if err != nil {
-		log.Fatalf("Could not start setup!: %s", err)
-	}
-}
-
-// RegisterSetup register just setup handlers
-func RegisterSetup(smux *http.ServeMux) {
-	defaultHandler = startSetup
-	smux.HandleFunc("/", autoPage)
-	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	smux.HandleFunc("/endSetup", endSetup)
 }
 
