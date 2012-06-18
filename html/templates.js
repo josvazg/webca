@@ -65,6 +65,12 @@ function getElementsByClass( searchClass, domNode, tagName) {
 	}
 {{end}}
 
+{{define "JSSetupDone"}}
+	for (i=2;i<=4;i++) {
+		$('Step'+i).className='activated';
+	}
+{{end}}
+
 {{define "JSToggleOps"}}
 {{template "JSByClass"}}
 function toggleOps() {

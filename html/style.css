@@ -141,6 +141,8 @@ div.notice {
 	text-align: center;
 	margin-left: auto;
     margin-right: auto;
+    margin-top: .5em;
+    margin-botom: .5em;
 }
 
 label.notice {
