@@ -2,6 +2,7 @@ package webca
 
 import (
 	"crypto/x509/pkix"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -142,8 +143,9 @@ func PrepareServer() string {
 		log.Printf("(Warning) Starting WebCA setup...")
 		http.HandleFunc("/", showSetup)
 		http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-		http.Handle("/crt/",http.StripPrefix("/crt/", certServer(http.Dir("."))))
+		http.Handle("/crt/", http.StripPrefix("/crt/", certServer(http.Dir("."))))
 		http.HandleFunc("/setup", setup)
+		http.HandleFunc("/restart", restart)
 		return addr
 	}
 	// otherwise start the normal app
@@ -153,16 +155,16 @@ func PrepareServer() string {
 
 // certServer returns a certificate server filtering the downloadable cert files properly
 func certServer(dir http.Dir) http.Handler {
-	h:=http.FileServer(dir)
+	h := http.FileServer(dir)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
- 		if strings.HasSuffix(r.URL.Path, ".key.pem") || !strings.HasSuffix(r.URL.Path, ".pem") {
+		if strings.HasSuffix(r.URL.Path, ".key.pem") || !strings.HasSuffix(r.URL.Path, ".pem") {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-disposition","attachment; filename="+r.URL.Path)
+		w.Header().Set("Content-disposition", "attachment; filename="+r.URL.Path)
 		w.Header().Set("Content-type", "application/x-pem-file")
-        h.ServeHTTP(w, r)
-   })
+		h.ServeHTTP(w, r)
+	})
 }
 
 // showSetup shows the setup wizard form
@@ -195,7 +197,7 @@ func setup(w http.ResponseWriter, r *http.Request) {
 	mailer := readMailer(r)
 	log.Printf("Checking whether to do setup or not...")
 	ps := PageStatus{}
-	ps["CAName"]=certs["CA"].Name.CommonName
+	ps["CAName"] = certs["CA"].Name.CommonName
 	oneSetup.Lock()
 	defer oneSetup.Unlock()
 	if !setupDone {
@@ -220,7 +222,7 @@ func setup(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		setupDone=true
+		setupDone = true
 		ps["Message"] = tr("Setup OK!")
 	} else {
 		ps["Message"] = tr("Setup already done!")
@@ -229,7 +231,18 @@ func setup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	fmt.Fprintln(w, "We are done restart the app!")
+}
+
+// restart stops the app and restarts into webca if possible
+func restart(w http.ResponseWriter, r *http.Request) {
+	if !setupDone {
+		http.Error(w, tr("Can't restart, setup wasn't done!"), http.StatusInternalServerError)
+	}
+	if LoadConfig() == nil {
+		http.Error(w, tr("Can't restart, there is no config to load!"),
+			http.StatusInternalServerError)
+	}
+	log.Printf("cmd: %v\n", flag.Args())
 }
 
 // copyTo copies from file orig to file dest, appending if dest exists

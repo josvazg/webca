@@ -17,7 +17,7 @@ import (
 
 const (
 	CERT_SUFFIX = ".pem"
-	KEY_SUFFIX  = ".Key.pem"
+	KEY_SUFFIX  = ".key.pem"
 	SECS_IN_DAY = 24 * 60 * 60
 )
 
@@ -320,4 +320,3 @@ func main() {
 	//certTree = LoadCertTree(".")
 	//log.Print("Renewed CertTree:\n", certTree)
 }*/
-
