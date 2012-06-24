@@ -27,11 +27,14 @@ type config struct {
 	Advance int // days before the cert. expires that the notification will be sent
 	Users   map[string]*User
 	Certs   *CertTree
+	WebCA   *Cert
+	WebCert *Cert
 }
 
 // Configurer is the interface to access and user Configuration
 type Configurer interface {
 	save() error
+	webCA() *Cert
 }
 
 // New Config obtains a new Config
@@ -39,7 +42,7 @@ func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) Configurer {
 	certs := newCertTree()
 	certs.addCert(cacert)
 	certs.addCert(cert)
-	cfg := &config{&m, 15, make(map[string]*User), certs}
+	cfg := &config{&m, 15, make(map[string]*User), certs, cacert, cert}
 	cfg.Users[u.Username] = &u
 	return cfg
 }
@@ -86,3 +89,7 @@ func (cfg *config) save() error {
 	return nil
 }
 
+// webCA returns this web CA Cert
+func (cfg *config) webCA() *Cert {
+	return cfg.WebCA
+}

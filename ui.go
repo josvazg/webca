@@ -43,7 +43,7 @@ func init() {
 	})
 	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
 		"html/ca.html", "html/cert.html",
-		"html/setup.html", "html/setupDone.html",
+		"html/setup.html", "html/restart.html",
 		"html/templates.html", "html/templates.js", "html/style.css"))
 
 	// build templateIndex
@@ -93,10 +93,11 @@ func indexOf(sa []string, index int) string {
 // WebCA starts the prepares and serves the WebApp 
 func WebCA() {
 	addr := PrepareServer()
-	log.Printf("Go to http://" + addr + "/...")
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Printf("Could not start server on address '"+addr+"'!: %s", err)
+	} else {
+		log.Printf("Go to http://" + addr + "/...")
 	}
 	addr = alternateAddress(addr)
 	log.Printf("(Warning) Failed to listen, go to http://" + addr + "/...")
@@ -125,7 +126,13 @@ func PrepareServer() string {
 	}
 	// otherwise start the normal app
 	log.Printf("WebCA normal startup...\n")
+	PrepareWebCA()
 	return ADDR
+}
+
+func PrepareWebCA() {
+
+
 }
 
 // certServer returns a certificate server filtering the downloadable cert files properly
@@ -183,6 +190,14 @@ func readMailer(r *http.Request) Mailer {
 	}
 	m.Passwd = r.FormValue("M.Password")
 	return m
+}
+
+// index displays the index page 
+func index(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "index"+_HTML, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // autoPage displays the page specified in the URL that matches a template
