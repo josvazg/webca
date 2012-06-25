@@ -31,7 +31,7 @@ var setupDone bool
 var rootFunc func(w http.ResponseWriter, r *http.Request)
 
 // PrepareSetup prepares the Web handlers for the setup wizard
-func PrepareSetup() string {
+func PrepareSetup() (string , bool) {
 	addr := fmt.Sprintf("%s:%v", SETUPADDR, SETUPPORT)
 	log.Printf("(Warning) Starting WebCA setup...")
 	rootFunc=showSetup
@@ -40,7 +40,7 @@ func PrepareSetup() string {
 	http.Handle("/crt/", http.StripPrefix("/crt/", certServer(http.Dir("."))))
 	http.HandleFunc("/setup", setup)
 	http.HandleFunc("/restart", restart)
-	return addr
+	return addr, false
 }
 
 // smartSwitch redirects to showSetup or index depending on whether the setup is done or not
@@ -95,7 +95,7 @@ func setup(w http.ResponseWriter, r *http.Request) {
 		log.Printf("CA=%s\nCert=%s\n", cacert, cert)
 		copyTo(cacert.Crt.Subject.CommonName+".pem", WEBCA_FILE)
 		copyTo(cert.Crt.Subject.CommonName+".pem", WEBCA_FILE)
-		copyTo(cert.Crt.Subject.CommonName+".key.pem", WEBCA_KEY)
+		copyTo(cert.Crt.Subject.CommonName+".key.pem", WEBCA_KEYFILE)
 		log.Printf("Saving config...")
 		if err = NewConfig(user, cacert, cert, mailer).save(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -103,6 +103,9 @@ func setup(w http.ResponseWriter, r *http.Request) {
 		}
 		setupDone = true
 		rootFunc=restart
+		// Restarting the server on the right TLS port
+		http.DefaultServeMux=http.NewServeMux()
+		go WebCA()
 	}
 	restart(w,r)
 }
@@ -112,7 +115,8 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	cfg:=LoadConfig()
 	ps := PageStatus{}
 	ps["Message"] = tr("Setup is done!")
-	ps["CAName"] = cfg.webCA().Crt.Subject.CommonName
+	ps["CAName"] = cfg.webCert().Parent.Crt.Subject.CommonName
+	ps["CertName"] = cfg.webCert().Crt.Subject.CommonName
 	err := templates.ExecuteTemplate(w, "restart"+_HTML, ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

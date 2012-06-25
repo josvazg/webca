@@ -10,9 +10,8 @@ import (
 )
 
 const (
-	ADDR    = ""
 	PORT    = 443
-	ALTPORT = 8000
+	PLUSPORT = 1000
 	_HTML   = ".html"
 )
 
@@ -92,47 +91,58 @@ func indexOf(sa []string, index int) string {
 
 // WebCA starts the prepares and serves the WebApp 
 func WebCA() {
-	addr := PrepareServer()
-	err := http.ListenAndServe(addr, nil)
+	addr,tls := PrepareServer()
+	err := listenAndServe(addr, tls)
 	if err != nil {
 		log.Printf("Could not start server on address '"+addr+"'!: %s", err)
 	} else {
 		log.Printf("Go to http://" + addr + "/...")
 	}
 	addr = alternateAddress(addr)
-	log.Printf("(Warning) Failed to listen, go to http://" + addr + "/...")
-	err = http.ListenAndServe(addr, nil)
+	log.Printf("(Warning) Failed to listen on standard port, go to http://" + addr + "/...")
+	err = listenAndServe(addr, tls)
 	if err != nil {
 		log.Fatalf("Could not start!: %s", err)
 	}
 }
 
+// listenAndServe starts the server with or without TLS
+func listenAndServe(addr string, tls bool) error {
+	if tls {
+		return http.ListenAndServeTLS(addr, WEBCA_FILE, WEBCA_KEYFILE, nil)
+	}
+	return http.ListenAndServe(addr, nil)
+}
+
 // alternateAddress returns the alternate address by changing or adding the port to ALTPORT
 func alternateAddress(addr string) string {
+	port:=80
 	if strings.Contains(addr, ":") {
 		parts := strings.Split(addr, ":")
 		addr = parts[0]
+		var err error
+		port,err = strconv.Atoi(parts[1])
+		if err!=nil {
+			port=80
+		}
 	}
-	return fmt.Sprintf("%s:%v", addr, ALTPORT)
+	return fmt.Sprintf("%s:%v", addr, port+PLUSPORT)
 }
 
 // prepareServer prepares the Web handlers for the setup wizard if there is no HTTPS config or 
 // the normal app if the app is already configured
-func PrepareServer() string {
+func PrepareServer() (string, bool) {
 	// load config...
 	cfg := LoadConfig()
 	if cfg == nil { // if config is null then run the setup
 		return PrepareSetup()
 	}
 	// otherwise start the normal app
-	log.Printf("WebCA normal startup...\n")
-	PrepareWebCA()
-	return ADDR
-}
-
-func PrepareWebCA() {
-
-
+	addr := fmt.Sprintf("%s:%v", cfg.webCert().Crt.Subject.CommonName, PORT)
+	log.Printf("Starting WebCA normal startup...")
+	http.HandleFunc("/", index)
+	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	return addr,true
 }
 
 // certServer returns a certificate server filtering the downloadable cert files properly
