@@ -9,8 +9,6 @@ import (
 
 const (
 	WEBCA_CFG  = ".webca.cfg"
-	WEBCA_FILE = "webca.pem"
-	WEBCA_KEYFILE  = "webca.key.pem"
 )
 
 // oneCfg ensures serialized access to configuration
@@ -34,6 +32,8 @@ type config struct {
 type Configurer interface {
 	save() error
 	webCert() *Cert
+	certFile() string
+	keyFile() string
 }
 
 // New Config obtains a new Config
@@ -88,7 +88,17 @@ func (cfg *config) save() error {
 	return nil
 }
 
-// webCA returns this web CA Cert
+// webCert returns this web Certificate
 func (cfg *config) webCert() *Cert {
 	return cfg.WebCert
+}
+
+// webCA returns this web CA Cert
+func (cfg *config) certFile() string {
+	return cfg.WebCert.Crt.Subject.CommonName+CERT_SUFFIX
+}
+
+// webCA returns this web CA Cert
+func (cfg *config) keyFile() string {
+	return cfg.WebCert.Crt.Subject.CommonName+KEY_SUFFIX
 }

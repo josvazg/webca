@@ -22,23 +22,22 @@ type CertSetup struct {
 // oneSetup holds the setup lock
 var oneSetup sync.Mutex
 
-// setupDone tells whether the configation has been applied or not
+// setupDone tells whether the configuration has been applied or not
 var setupDone bool
 
 // rootFunc points to the root function that is different on setup and normal mode
 var rootFunc func(w http.ResponseWriter, r *http.Request)
 
 // PrepareSetup prepares the Web handlers for the setup wizard
-func PrepareSetup() address {
-	addr := fmt.Sprintf("%s:%v", SETUPADDR, SETUPPORT)
+func PrepareSetup(smux *http.ServeMux) address { 
 	log.Printf("(Warning) Starting WebCA setup...")
 	rootFunc = showSetup
-	http.HandleFunc("/", smartSwitch)
-	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	http.Handle("/crt/", http.StripPrefix("/crt/", certServer(http.Dir("."))))
-	http.HandleFunc("/setup", setup)
-	http.HandleFunc("/restart", restart)
-	return address{addr: addr, tls: false}
+	smux.HandleFunc("/", smartSwitch)
+	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	smux.Handle("/crt/", http.StripPrefix("/crt/", certServer(http.Dir("."))))
+	smux.HandleFunc("/setup", setup)
+	smux.HandleFunc("/restart", restart)
+	return address{addr: fmt.Sprintf("%s:%v", SETUPADDR, SETUPPORT), tls: false}
 }
 
 // smartSwitch redirects to showSetup or index depending on whether the setup is done or not
@@ -98,9 +97,7 @@ func setup(w http.ResponseWriter, r *http.Request) {
 		}
 		setupDone = true
 		rootFunc = restart
-		// Restarting the server on the right TLS port
-		http.DefaultServeMux = http.NewServeMux()
-		go WebCA()
+		go webCA()
 	}
 	restart(w, r)
 }
@@ -112,6 +109,7 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	ps["Message"] = tr("Setup is done!")
 	ps["CAName"] = cfg.webCert().Parent.Crt.Subject.CommonName
 	ps["CertName"] = cfg.webCert().Crt.Subject.CommonName
+	ps["WebCAURL"] = webCAURL(cfg)
 	err := templates.ExecuteTemplate(w, "restart"+_HTML, ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -11,7 +11,7 @@ import (
 
 const (
 	PORT     = 443
-	PLUSPORT = 1000
+	PORTFIX = 8000
 	_HTML    = ".html"
 )
 
@@ -21,12 +21,15 @@ type address struct {
 	tls                     bool
 }
 
+// portFix contains the port correction when low ports are not permited
+var portFix int
+
 // listenAndServe starts the server with or without TLS on the address
-func (a address) listenAndServe() error {
+func (a address) listenAndServe(smux *http.ServeMux) error {
 	if a.tls {
-		return http.ListenAndServeTLS(a.addr, a.certfile, a.keyfile, nil)
+		return http.ListenAndServeTLS(a.addr, a.certfile, a.keyfile, smux)
 	}
-	return http.ListenAndServe(a.addr, nil)
+	return http.ListenAndServe(a.addr, smux)
 }
 
 // String prints this address properly
@@ -115,23 +118,36 @@ func indexOf(sa []string, index int) string {
 
 // WebCA starts the prepares and serves the WebApp 
 func WebCA() {
-	addr := PrepareServer()
-	err := addr.listenAndServe()
-	if err != nil {
-		log.Printf("Could not start server on address %v!: %s\n", addr, err)
-	} else {
-		log.Printf("Go to %v\n", addr)
+	smux:=http.DefaultServeMux
+	addr := PrepareServer(smux)
+	err := addr.listenAndServe(smux)
+	if portFix==0 { // port Fixing is only applied once
+		if err != nil {
+			log.Printf("Could not start server on address %v!: %s\n", addr, err)
+		}
+		portFix=PORTFIX
+		addr = fixAddress(addr)
+		log.Printf("(Warning) Failed to listen on standard port, go to %v\n", addr)
+		err = addr.listenAndServe(smux)
 	}
-	addr = alternateAddress(addr)
-	log.Printf("(Warning) Failed to listen on standard port, go to %v\n", addr)
-	err = addr.listenAndServe()
 	if err != nil {
 		log.Fatalf("Could not start!: %s", err)
 	}
 }
 
-// alternateAddress returns the alternate address by changing or adding the port to ALTPORT
-func alternateAddress(a address) address {
+// webCA will start the WebApp once it has been configured properly on a NEW http.ServeMux
+func webCA() {
+	smux:=http.NewServeMux()
+    addr := PrepareServer(smux)
+    log.Printf("Go to %v\n",addr)
+	err := addr.listenAndServe(smux)
+	if err != nil {
+		log.Fatalf("Could not start!: %s", err)
+	}
+}
+
+// fixAddress returns a repaired alternate address by portFix
+func fixAddress(a address) address {
 	port := 80
 	if strings.Contains(a.addr, ":") {
 		parts := strings.Split(a.addr, ":")
@@ -142,25 +158,29 @@ func alternateAddress(a address) address {
 			port = 80
 		}
 	}
-	a.addr = fmt.Sprintf("%s:%v", a.addr, port+PLUSPORT)
+	a.addr = fmt.Sprintf("%s:%v", a.addr, port+portFix)
 	return a
 }
 
 // prepareServer prepares the Web handlers for the setup wizard if there is no HTTPS config or 
 // the normal app if the app is already configured
-func PrepareServer() address {
+func PrepareServer(smux *http.ServeMux) address {
 	// load config...
 	cfg := LoadConfig()
 	if cfg == nil { // if config is null then run the setup
-		return PrepareSetup()
+		return PrepareSetup(smux) // always on the default serve mux
 	}
 	// otherwise start the normal app
-	certName := cfg.webCert().Crt.Subject.CommonName
-	addr := fmt.Sprintf("%s:%v", certName, PORT)
 	log.Printf("Starting WebCA normal startup...")
-	http.HandleFunc("/", index)
-	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	return address{addr, certName + CERT_SUFFIX, certName + KEY_SUFFIX, true}
+	smux.HandleFunc("/", index)
+	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	return address{webCAURL(cfg), cfg.certFile(), cfg.keyFile(), true}
+}
+
+// webCAURL returns the WebCA URL
+func webCAURL(cfg Configurer) string {
+	certName := cfg.webCert().Crt.Subject.CommonName
+	return fmt.Sprintf("%s:%v", certName, PORT+portFix)
 }
 
 // certServer returns a certificate server filtering the downloadable cert files properly

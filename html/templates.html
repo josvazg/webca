@@ -34,6 +34,9 @@
 {{define "htmlheader"}}
 <div class="topbar">
 <h1>WebCA</h1>
+<style type="text/css">
+{{template "style.css"}}
+</style>
   <div class="loggedUser">
 {{if .User}} Logged as: {{.User.Email}} (<a href="/login">logout</a>)
 {{else}} Not logged in (<a href="/login">login here</a>)
