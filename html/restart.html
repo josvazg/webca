@@ -2,14 +2,13 @@
 
 <h2>{{.Message}}</h2>
 
-
 <div class="mediumExplanation" id="text">
 {{tr "You'll need to install the CA certificate."}} <p/>
 <a href="crt/{{.CAName}}.pem">{{tr "Download CA certificate here"}}</a><p/>
 {{tr "In case something goes wrong with the download the file you are looking for is"}}: <b>{{.CAName}}.pem</b> <p/>
 <p/>
 {{tr "Once you are done, you can start using your WebCA right away..."}} <p/>
-<a href="/">{{tr "Click here to go into your WebCA"}}</a><p/>
+<a href="https://{{.CertName}}">{{tr "Click here to go into your WebCA"}}</a><p/>
 </div>
 
 <script type="text/javascript">

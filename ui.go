@@ -10,10 +10,33 @@ import (
 )
 
 const (
-	PORT    = 443
+	PORT     = 443
 	PLUSPORT = 1000
-	_HTML   = ".html"
+	_HTML    = ".html"
 )
+
+// address is a complex bind address
+type address struct {
+	addr, certfile, keyfile string
+	tls                     bool
+}
+
+// listenAndServe starts the server with or without TLS on the address
+func (a address) listenAndServe() error {
+	if a.tls {
+		return http.ListenAndServeTLS(a.addr, a.certfile, a.keyfile, nil)
+	}
+	return http.ListenAndServe(a.addr, nil)
+}
+
+// String prints this address properly
+func (a address) String() string {
+	prefix := "http"
+	if a.tls {
+		prefix = "https"
+	}
+	return prefix + "://" + a.addr
+}
 
 // templates contains all web templates
 var templates *template.Template
@@ -40,7 +63,8 @@ func init() {
 		// The name "title" is what the function will be called in the template text.
 		"tr": tr, "indexOf": indexOf,
 	})
-	template.Must(templates.ParseFiles("html/mailer.html", "html/user.html",
+	template.Must(templates.ParseFiles("html/index.html",
+		"html/mailer.html", "html/user.html",
 		"html/ca.html", "html/cert.html",
 		"html/setup.html", "html/restart.html",
 		"html/templates.html", "html/templates.js", "html/style.css"))
@@ -91,58 +115,52 @@ func indexOf(sa []string, index int) string {
 
 // WebCA starts the prepares and serves the WebApp 
 func WebCA() {
-	addr,tls := PrepareServer()
-	err := listenAndServe(addr, tls)
+	addr := PrepareServer()
+	err := addr.listenAndServe()
 	if err != nil {
-		log.Printf("Could not start server on address '"+addr+"'!: %s", err)
+		log.Printf("Could not start server on address %v!: %s\n", addr, err)
 	} else {
-		log.Printf("Go to http://" + addr + "/...")
+		log.Printf("Go to %v\n", addr)
 	}
 	addr = alternateAddress(addr)
-	log.Printf("(Warning) Failed to listen on standard port, go to http://" + addr + "/...")
-	err = listenAndServe(addr, tls)
+	log.Printf("(Warning) Failed to listen on standard port, go to %v\n", addr)
+	err = addr.listenAndServe()
 	if err != nil {
 		log.Fatalf("Could not start!: %s", err)
 	}
 }
 
-// listenAndServe starts the server with or without TLS
-func listenAndServe(addr string, tls bool) error {
-	if tls {
-		return http.ListenAndServeTLS(addr, WEBCA_FILE, WEBCA_KEYFILE, nil)
-	}
-	return http.ListenAndServe(addr, nil)
-}
-
 // alternateAddress returns the alternate address by changing or adding the port to ALTPORT
-func alternateAddress(addr string) string {
-	port:=80
-	if strings.Contains(addr, ":") {
-		parts := strings.Split(addr, ":")
-		addr = parts[0]
+func alternateAddress(a address) address {
+	port := 80
+	if strings.Contains(a.addr, ":") {
+		parts := strings.Split(a.addr, ":")
+		a.addr = parts[0]
 		var err error
-		port,err = strconv.Atoi(parts[1])
-		if err!=nil {
-			port=80
+		port, err = strconv.Atoi(parts[1])
+		if err != nil {
+			port = 80
 		}
 	}
-	return fmt.Sprintf("%s:%v", addr, port+PLUSPORT)
+	a.addr = fmt.Sprintf("%s:%v", a.addr, port+PLUSPORT)
+	return a
 }
 
 // prepareServer prepares the Web handlers for the setup wizard if there is no HTTPS config or 
 // the normal app if the app is already configured
-func PrepareServer() (string, bool) {
+func PrepareServer() address {
 	// load config...
 	cfg := LoadConfig()
 	if cfg == nil { // if config is null then run the setup
 		return PrepareSetup()
 	}
 	// otherwise start the normal app
-	addr := fmt.Sprintf("%s:%v", cfg.webCert().Crt.Subject.CommonName, PORT)
+	certName := cfg.webCert().Crt.Subject.CommonName
+	addr := fmt.Sprintf("%s:%v", certName, PORT)
 	log.Printf("Starting WebCA normal startup...")
 	http.HandleFunc("/", index)
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
-	return addr,true
+	return address{addr, certName + CERT_SUFFIX, certName + KEY_SUFFIX, true}
 }
 
 // certServer returns a certificate server filtering the downloadable cert files properly
@@ -255,3 +273,4 @@ func page(r *http.Request) string {
 	}
 	return pg
 }
+

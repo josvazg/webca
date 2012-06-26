@@ -3,10 +3,8 @@ package webca
 import (
 	"crypto/x509/pkix"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 )
 
@@ -31,21 +29,21 @@ var setupDone bool
 var rootFunc func(w http.ResponseWriter, r *http.Request)
 
 // PrepareSetup prepares the Web handlers for the setup wizard
-func PrepareSetup() (string , bool) {
+func PrepareSetup() address {
 	addr := fmt.Sprintf("%s:%v", SETUPADDR, SETUPPORT)
 	log.Printf("(Warning) Starting WebCA setup...")
-	rootFunc=showSetup
+	rootFunc = showSetup
 	http.HandleFunc("/", smartSwitch)
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	http.Handle("/crt/", http.StripPrefix("/crt/", certServer(http.Dir("."))))
 	http.HandleFunc("/setup", setup)
 	http.HandleFunc("/restart", restart)
-	return addr, false
+	return address{addr: addr, tls: false}
 }
 
 // smartSwitch redirects to showSetup or index depending on whether the setup is done or not
 func smartSwitch(w http.ResponseWriter, r *http.Request) {
-	rootFunc(w,r)
+	rootFunc(w, r)
 }
 
 // showSetup shows the setup wizard form
@@ -93,26 +91,23 @@ func setup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("CA=%s\nCert=%s\n", cacert, cert)
-		copyTo(cacert.Crt.Subject.CommonName+".pem", WEBCA_FILE)
-		copyTo(cert.Crt.Subject.CommonName+".pem", WEBCA_FILE)
-		copyTo(cert.Crt.Subject.CommonName+".key.pem", WEBCA_KEYFILE)
 		log.Printf("Saving config...")
 		if err = NewConfig(user, cacert, cert, mailer).save(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		setupDone = true
-		rootFunc=restart
+		rootFunc = restart
 		// Restarting the server on the right TLS port
-		http.DefaultServeMux=http.NewServeMux()
+		http.DefaultServeMux = http.NewServeMux()
 		go WebCA()
 	}
-	restart(w,r)
+	restart(w, r)
 }
 
 // restart tells the user the setup is already done so she can proceed to the WebCA
 func restart(w http.ResponseWriter, r *http.Request) {
-	cfg:=LoadConfig()
+	cfg := LoadConfig()
 	ps := PageStatus{}
 	ps["Message"] = tr("Setup is done!")
 	ps["CAName"] = cfg.webCert().Parent.Crt.Subject.CommonName
@@ -123,20 +118,3 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// copyTo copies from file orig to file dest, appending if dest exists
-func copyTo(orig, dest string) error {
-	r, err := os.Open(orig)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	w, err := os.OpenFile(dest, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-	if _, err = io.Copy(w, r); err != nil {
-		return err
-	}
-	return nil
-}
