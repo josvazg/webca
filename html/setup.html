@@ -13,12 +13,19 @@
 </div>
 
 <div id="form1">
-<h2>{{tr "First User"}}</h2>
+<h2>{{tr "First User & Mailer Configuration"}}</h2>
 <div class="explanation">
 {{tr "You'll need a user and a password in order to use this application."}} <br/>
 </div>
 <table class="form">
 {{template "userDetails" .}}
+</table>
+<div class="explanation">
+{{tr "If you want to get email notifications before your certificates expires,"}}<p/>
+{{tr "we need to configure a sending email account"}}
+</div>
+<table class="form">
+{{template "mailerDetails" .}}
 </table>
 </div>
 
@@ -52,17 +59,6 @@
 <tr><td colspan="2">
 <a id="toggler" onclick="toggleOps()" class="control">{{tr "More"}}...</a>
 </td></tr>
-</table>
-</div>
-
-<div id="form4" style="display: none">
-<h2>{{tr "Mailer Configuration"}}</h2>
-<div class="explanation">
-{{tr "Finally, if you want to get email notifications before your certificates expires,"}}<p/>
-{{tr "we need to configure a sending email account"}}
-</div>
-<table class="form">
-{{template "mailerDetails" .}}
 <tr><td colspan="2">
 <input type="submit" disabled="true" id="submit" name="submit" value="{{tr "Save"}}"></td><tr>
 </table>

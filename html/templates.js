@@ -2,6 +2,13 @@
 function $(id) {
 	return document.getElementById(id);
 }
+function addEvent (x,y,z) { 
+	if (document.addEventListener){ 
+		x.addEventListener(y,z,false);
+	} else { 
+		x.attachEvent('on'+y,z); 
+	}
+}
 {{end}}
 
 {{define "JSByClass"}}
@@ -38,6 +45,11 @@ function getElementsByClass( searchClass, domNode, tagName) {
 		$('Step'+step).className='activated';
 		$('form'+step).style.display='';
 	}
+	function fillMailerConfig() {
+		if($('M.User').value==null || $('M.User').value=='') {
+			$('M.User').value=$('Email').value;
+		}
+	}
 	function helper() {
 		if(step==1) {
 			$('Prev').style.visibility='hidden';
@@ -53,16 +65,12 @@ function getElementsByClass( searchClass, domNode, tagName) {
 					$('Cert.'+field).value=$('CA.'+field).value;
 				}
 			}
-		}
-		if(step==4) {
-			if($('M.User').value==null || $('M.User').value=='') {
-				$('M.User').value=$('Email').value;
-			}
 			$('Next').style.visibility='hidden';
 		} else {
 			$('Next').style.visibility='';
 		}
 	}
+	addEvent(window,"onload",function(){ $('Email').onblur=fillMailerConfig; });
 {{end}}
 
 {{define "JSSetupDone"}}
@@ -87,7 +95,7 @@ function toggleOps() {
 		}
 	}
 }
-document.body.onload=toggleOps;
+addEvent(window,"onload",toggleOps);
 {{end}}
 
 {{define "JSCheckpasswd"}}

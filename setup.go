@@ -29,7 +29,7 @@ var setupDone bool
 var rootFunc func(w http.ResponseWriter, r *http.Request)
 
 // PrepareSetup prepares the Web handlers for the setup wizard
-func PrepareSetup(smux *http.ServeMux) address { 
+func PrepareSetup(smux *http.ServeMux) address {
 	log.Printf("(Warning) Starting WebCA setup...")
 	rootFunc = showSetup
 	smux.HandleFunc("/", smartSwitch)
@@ -115,4 +115,3 @@ func restart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
-
