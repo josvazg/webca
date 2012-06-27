@@ -15,7 +15,7 @@
 </label>
 <label class="shadowed" id="Step2">
 <label class="bigger">2</label>
-<label class="explanation">{{tr "CA Generation"}}</label>
+<label class="explanation">{{tr "Certificate Authority"}}</label>
 </label>
 <label class="shadowed" id="Step3">
 <label class="bigger">3</label>
@@ -25,6 +25,7 @@
 </div>
 <script type="text/javascript">
 {{template "JSGetID"}}
+{{template "JSEvents"}}
 {{template "JSSetupNavigation"}}
 {{template "JSToggleOps"}}
 {{template "JSCheckpasswd"}}
@@ -64,10 +65,12 @@
 {{define "userDetails"}}
 <tr><td class="mainlabel">{{tr "Username"}}:</td>
     <td class="mainlabel">
-    <input type="text" class="main" id="Username" name="Username" value="{{.U.Username}}"></td></tr>
+    <input type="text" class="main" id="Username" name="Username" 
+           value="{{.U.Username}}" maxlength="32"></td></tr>
 <tr><td class="label">{{tr "Fullname"}}:</td>
     <td class="label">
-    <input type="text" name="Fullname" size="50" value="{{.U.Fullname}}"></td></tr>
+    <input type="text" name="Fullname" size="64"  maxlength="64" 
+           value="{{.U.Fullname}}"></td></tr>
 <tr><td class="label">{{tr "Password"}}:</td>
     <td class="label"><input type="password" id="Password" name="Password" 
         onkeyup="checkPassword(this)"></td>

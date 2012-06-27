@@ -2,6 +2,8 @@
 function $(id) {
 	return document.getElementById(id);
 }
+{{end}}
+{{define "JSEvents"}}
 function addEvent (x,y,z) { 
 	if (document.addEventListener){ 
 		x.addEventListener(y,z,false);
@@ -70,7 +72,7 @@ function getElementsByClass( searchClass, domNode, tagName) {
 			$('Next').style.visibility='';
 		}
 	}
-	addEvent(window,"onload",function(){ $('Email').onblur=fillMailerConfig; });
+	addEvent(window,"load",function(){ $('Email').onblur=fillMailerConfig; });
 {{end}}
 
 {{define "JSSetupDone"}}
@@ -95,7 +97,7 @@ function toggleOps() {
 		}
 	}
 }
-addEvent(window,"onload",toggleOps);
+addEvent(window,"load",toggleOps);
 {{end}}
 
 {{define "JSCheckpasswd"}}
