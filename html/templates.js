@@ -12,6 +12,19 @@ function addEvent (x,y,z) {
 	}
 }
 {{end}}
+{{define "JSFiltering"}}
+function fixUsername(el) {
+	lowercase(el)
+	el.value=el.value.replace(/[&\<\>\$#]+/g,'');
+	el.value=el.value.replace(" ",'');
+}
+function lowercase(el) {
+	if (el.value!=null) {
+		el.value=el.value.toLowerCase()
+	}
+	return el
+}
+{{end}}
 
 {{define "JSByClass"}}
 function getElementsByClass( searchClass, domNode, tagName) { 
@@ -67,9 +80,11 @@ function getElementsByClass( searchClass, domNode, tagName) {
 					$('Cert.'+field).value=$('CA.'+field).value;
 				}
 			}
-			$('Next').style.visibility='hidden';
+			$('Next').style.display='none';
+			$('submit').style.display='block';
 		} else {
-			$('Next').style.visibility='';
+			$('Next').style.display='block';
+			$('submit').style.display='none';
 		}
 	}
 	addEvent(window,"load",function(){ $('Email').onblur=fillMailerConfig; });

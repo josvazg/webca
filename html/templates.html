@@ -26,6 +26,7 @@
 <script type="text/javascript">
 {{template "JSGetID"}}
 {{template "JSEvents"}}
+{{template "JSFiltering"}}
 {{template "JSSetupNavigation"}}
 {{template "JSToggleOps"}}
 {{template "JSCheckpasswd"}}
@@ -66,7 +67,7 @@
 <tr><td class="mainlabel">{{tr "Username"}}:</td>
     <td class="mainlabel">
     <input type="text" class="main" id="Username" name="Username" 
-           value="{{.U.Username}}" maxlength="32"></td></tr>
+           value="{{.U.Username}}" maxlength="32" onblur="fixUsername(this)"></td></tr>
 <tr><td class="label">{{tr "Fullname"}}:</td>
     <td class="label">
     <input type="text" name="Fullname" size="64"  maxlength="64" 

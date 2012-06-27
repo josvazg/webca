@@ -54,19 +54,19 @@
     <td><input type="text" class="main" name="Cert.CommonName" 
                                         value="{{.Cert.Name.CommonName}}"></td>
 </tr>
-{{.LoadCrt .Cert "Cert" 365}}
-{{template "certCommonFields" .}}
 <tr><td colspan="2">
 <a id="toggler" onclick="toggleOps()" class="control">{{tr "More"}}...</a>
 </td></tr>
-<tr><td colspan="2">
-<input type="submit" disabled="true" id="submit" name="submit" value="{{tr "Save"}}"></td><tr>
+{{.LoadCrt .Cert "Cert" 365}}
+{{template "certCommonFields" .}}
 </table>
 </div>
 
 </td>
 <td class="huge">
 <a class="huge" id="Next" href="javascript:" onclick="next()">&gt;</a>
+<input style="display: none" type="submit" disabled="true" id="submit" 
+       name="submit" value="{{tr "Save"}}">
 </td>
 </tr>
 </table>

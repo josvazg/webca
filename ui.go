@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	PORT     = 443
+	PORT    = 443
 	PORTFIX = 8000
-	_HTML    = ".html"
+	_HTML   = ".html"
 )
 
 // address is a complex bind address
@@ -118,14 +118,14 @@ func indexOf(sa []string, index int) string {
 
 // WebCA starts the prepares and serves the WebApp 
 func WebCA() {
-	smux:=http.DefaultServeMux
+	smux := http.DefaultServeMux
 	addr := PrepareServer(smux)
 	err := addr.listenAndServe(smux)
-	if portFix==0 { // port Fixing is only applied once
+	if portFix == 0 { // port Fixing is only applied once
 		if err != nil {
 			log.Printf("Could not start server on address %v!: %s\n", addr, err)
 		}
-		portFix=PORTFIX
+		portFix = PORTFIX
 		addr = fixAddress(addr)
 		log.Printf("(Warning) Failed to listen on standard port, go to %v\n", addr)
 		err = addr.listenAndServe(smux)
@@ -137,9 +137,9 @@ func WebCA() {
 
 // webCA will start the WebApp once it has been configured properly on a NEW http.ServeMux
 func webCA() {
-	smux:=http.NewServeMux()
-    addr := PrepareServer(smux)
-    log.Printf("Go to %v\n",addr)
+	smux := http.NewServeMux()
+	addr := PrepareServer(smux)
+	log.Printf("Go to %v\n", addr)
 	err := addr.listenAndServe(smux)
 	if err != nil {
 		log.Fatalf("Could not start!: %s", err)
@@ -293,4 +293,3 @@ func page(r *http.Request) string {
 	}
 	return pg
 }
-
