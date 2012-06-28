@@ -6,6 +6,7 @@ body {
 h1 {
 	font-size: 36pt;
 	color: #000030;
+	vertical-align: top;
 }
 
 .bigger {

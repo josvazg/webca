@@ -34,6 +34,7 @@ func PrepareSetup(smux *http.ServeMux) address {
 	rootFunc = showSetup
 	smux.HandleFunc("/", smartSwitch)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
 	smux.Handle("/crt/", http.StripPrefix("/crt/", certServer(http.Dir("."))))
 	smux.HandleFunc("/setup", setup)
 	smux.HandleFunc("/restart", restart)
@@ -115,3 +116,4 @@ func restart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+

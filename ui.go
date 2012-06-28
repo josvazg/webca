@@ -174,6 +174,7 @@ func PrepareServer(smux *http.ServeMux) address {
 	log.Printf("Starting WebCA normal startup...")
 	smux.HandleFunc("/", index)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
+	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
 	return address{webCAURL(cfg), cfg.certFile(), cfg.keyFile(), true}
 }
 
@@ -293,3 +294,4 @@ func page(r *http.Request) string {
 	}
 	return pg
 }
+
