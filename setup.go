@@ -56,7 +56,7 @@ func showSetup(w http.ResponseWriter, r *http.Request) {
 		"U":      &User{},
 		"M":      &Mailer{},
 	}
-	err := templates.ExecuteTemplate(w, "setup"+_HTML, ps)
+	err := templates.ExecuteTemplate(w, "setup", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -111,7 +111,7 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	ps["CAName"] = cfg.webCert().Parent.Crt.Subject.CommonName
 	ps["CertName"] = cfg.webCert().Crt.Subject.CommonName
 	ps["WebCAURL"] = webCAURL(cfg)
-	err := templates.ExecuteTemplate(w, "restart"+_HTML, ps)
+	err := templates.ExecuteTemplate(w, "restart", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
