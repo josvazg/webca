@@ -12,7 +12,6 @@ import (
 const (
 	PORT    = 443
 	PORTFIX = 8000
-	_HTML   = ".html"
 )
 
 // address is a complex bind address
@@ -44,9 +43,6 @@ func (a address) String() string {
 // templates contains all web templates
 var templates *template.Template
 
-// templateIndex contains a quick way to test page template existence
-var templateIndex map[string]*template.Template
-
 // defaultHandler points to the handler for '/' requests
 var defaultHandler func(w http.ResponseWriter, r *http.Request)
 
@@ -66,21 +62,10 @@ func init() {
 		// The name "title" is what the function will be called in the template text.
 		"tr": tr, "indexOf": indexOf,
 	})
-	template.Must(templates.ParseFiles("html/index.html",
-		"html/mailer.html", "html/user.html",
-		"html/ca.html", "html/cert.html",
-		"html/setup.html", "html/restart.html",
-		"html/templates.html", "html/templates.js", "html/style.css"))
-
-	// build templateIndex
-	templateIndex = make(map[string]*template.Template)
-
-	for _, t := range templates.Templates() {
-		//log.Println("template: ", t.Name())
-		if strings.HasSuffix(t.Name(), _HTML) {
-			templateIndex[t.Name()] = t
-		}
-	}
+	template.Must(templates.Parse(htmlTemplates))
+	template.Must(templates.Parse(jsTemplates))
+	template.Must(templates.Parse(pages))
+	template.Must(templates.ParseFiles("style.css"))
 }
 
 // LoadCrt loads variables "Prfx" and "Crt" into PageSetup to point to the right 
@@ -243,55 +228,9 @@ func readMailer(r *http.Request) Mailer {
 
 // index displays the index page 
 func index(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "index"+_HTML, nil)
+	err := templates.ExecuteTemplate(w, "index", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-// autoPage displays the page specified in the URL that matches a template
-func autoPage(w http.ResponseWriter, r *http.Request) {
-	page := page(r)
-	if page == "" {
-		defaultHandler(w, r)
-		return
-	}
-	if !checkPage(page) {
-		http.NotFound(w, r)
-		return
-	}
-	//log.Println("uri=", r.URL.RequestURI(), "page=", page, "ps=", ps)
-	err := templates.ExecuteTemplate(w, page+_HTML, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// checkPage tells whether the given page does have a template
-func checkPage(page string) bool {
-	if page == "templates" {
-		return false
-	}
-	_, ok := templateIndex[page+_HTML]
-	return ok
-}
-
-// page extracts the page the user wants to go to from the URL
-func page(r *http.Request) string {
-	pg := r.URL.RequestURI()
-	if strings.Contains(pg, "?") {
-		pg = strings.Split(pg, "?")[0]
-	}
-	if strings.HasPrefix(pg, "/") {
-		pg = pg[1:]
-	}
-	if strings.Contains(pg, "/") {
-		parts := strings.Split(pg, "/")
-		pg = parts[len(parts)-1]
-	}
-	if strings.Contains(pg, ".") {
-		pg = strings.Split(pg, ".")[0]
-	}
-	return pg
 }
 
