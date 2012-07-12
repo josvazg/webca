@@ -157,7 +157,8 @@ func PrepareServer(smux *http.ServeMux) address {
 	}
 	// otherwise start the normal app
 	log.Printf("Starting WebCA normal startup...")
-	smux.HandleFunc("/", index)
+	smux.Handle("/", accessControl(index))
+	smux.HandleFunc("/login", login)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
 	return address{webCAURL(cfg), cfg.certFile(), cfg.keyFile(), true}
@@ -232,5 +233,54 @@ func index(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// accessControl invokes h IF we are logged in
+func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !loggedIn(r) {
+			err := templates.ExecuteTemplate(w, "login", copyRequest(PageStatus{}, r))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		h(w, r)
+	})
+}
+
+// login handles login action
+func login(w http.ResponseWriter, r *http.Request) {
+	Username := r.FormValue("Username")
+	Password := r.FormValue("Password")
+	cfg := LoadConfig()
+	if cfg.users[Username] != Password {
+		ps := copyRequest(PageStatus{"Error": tr("Access Denied")}, r)
+		err := templates.ExecuteTemplate(w, "login", ps)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+}
+
+// copyRequest copies a request status data on a PageStatus
+func copyRequest(ps PageStatus, r *http.Request) PageStatus {
+	r.ParseForm()
+	for k, v := range r.Form {
+		if v != nil {
+			if len(v) == 1 {
+				ps[k] = v[0]
+			} else {
+				ps[k] = v
+			}
+		}
+	}
+}
+
+// loggedIn returns true if the user of this request is logged in
+func loggedIn(r *http.Request) bool {
+	return SessionFor(r)["loggedUser"] != nil
 }
 

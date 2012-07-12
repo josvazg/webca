@@ -1,12 +1,12 @@
 package webca
 
 const (
-//
-//
-//            HTML Templates
-//
-//
-htmlTemplates=`{{define "setuphtmlheader"}}
+	//
+	//
+	//            HTML Templates
+	//
+	//
+	htmlTemplates = `{{define "setuphtmlheader"}}
 <html>
 <head>
 <title>WebCA (Setup)</title>
@@ -48,8 +48,7 @@ htmlTemplates=`{{define "setuphtmlheader"}}
 {{template "style.css"}}
 </style>
   <div class="loggedUser">
-{{if .User}} Logged as: {{.User.Email}} (<a href="/login">logout</a>)
-{{else}} Not logged in (<a href="/login">login here</a>)
+{{if .User}} Logged as: {{.User.Email}} (<a href="/logout">logout</a>)
 {{end}}
   </div>
 </div>
@@ -151,12 +150,12 @@ htmlTemplates=`{{define "setuphtmlheader"}}
         onkeyup="checkPassword(this)"></td></tr>
 {{end}}`
 
-//
-//
-//            Javascript Templates
-//
-//
-jsTemplates=`{{define "JSGetID"}}
+	//
+	//
+	//            Javascript Templates
+	//
+	//
+	jsTemplates = `{{define "JSGetID"}}
 function $(id) {
 	return document.getElementById(id);
 }
@@ -302,12 +301,12 @@ function checkPassword(el) {
 }
 {{end}}`
 
-//
-//
-//            Page Templates
-//
-//
-pages=`{{define "setup"}}
+	//
+	//
+	//            Page Templates
+	//
+	//
+	pages = `{{define "setup"}}
 {{template "setuphtmlheader" .}}
 <form action="/setup" method="post">
 <table style="width: 100%; height: 500px">
@@ -405,6 +404,35 @@ pages=`{{define "setup"}}
 
 {{template "htmlfooter"}}
 {{end}}
+
+{{define "login"}}
+{{template "htmlheader" .}}
+
+<h2>{{tr "WebCA's Login"}}</h2>
+{{if .Error}}
+<div class="notice" id="notice">
+<label class="notice" id="noticeText">{{.Error}}<label>
+</div>
+{{end}}
+<form action="/login" method="post">
+<table class="form">
+<tr><td class="label">{{tr "Username"}}:</td>
+    <td><input type="text" class="main" name="Username" value="{{.Username}}"></td></tr>
+<tr><td class="label">{{tr "Password"}}:</td>
+    <td><input type="password" class="main" name="Password">
+    <input type="hidden" id="Url" name="Url" value="{{.Url}}"/>
+    </td></tr>
+</tr>
+<td class="label" colspan="2" style="text-align: center">
+<input type="submit" id="submit" name="submit" value='{{tr "Login"}}'>
+</td>
+</tr>
+</table>
+</form>
+
+{{template "htmlfooter"}}
+{{end}}
+
 `
 )
 
