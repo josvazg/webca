@@ -109,8 +109,8 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	cfg := LoadConfig()
 	ps := PageStatus{}
 	ps["Message"] = tr("Setup is done!")
-	ps["CAName"] = cfg.WebCert.Parent.Crt.Subject.CommonName
-	ps["CertName"] = cfg.WebCert.Crt.Subject.CommonName
+	ps["CAName"] = cfg.getWebCert().Parent.Crt.Subject.CommonName
+	ps["CertName"] = cfg.getWebCert().Crt.Subject.CommonName
 	ps["WebCAURL"] = webCAURL(cfg)
 	err := templates.ExecuteTemplate(w, "restart", ps)
 	if err != nil {

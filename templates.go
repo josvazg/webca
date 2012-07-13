@@ -417,10 +417,11 @@ function checkPassword(el) {
 <form action="/login" method="post">
 <table class="form">
 <tr><td class="label">{{tr "Username"}}:</td>
-    <td><input type="text" class="main" name="Username" value="{{.Username}}"></td></tr>
+    <td><input type="text" class="main" name="Username" value="{{.Username}}">
+    </td></tr>
 <tr><td class="label">{{tr "Password"}}:</td>
-    <td><input type="password" class="main" name="Password">
-    <input type="hidden" id="Url" name="Url" value="{{.Url}}"/>
+    <td><input type="password" class="main" name="Password" value="{{.Password}}">
+    <input type="hidden" id="URL" name="URL" value="{{.URL}}"/>
     </td></tr>
 </tr>
 <td class="label" colspan="2" style="text-align: center">

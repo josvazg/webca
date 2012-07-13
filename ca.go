@@ -291,11 +291,11 @@ func handleFatal(err error) {
 	}
 }
 
-func certFile(crt *Cert) string {
+func certFile(crt Cert) string {
 	return filename(crt.Crt.Subject.CommonName) + CERT_SUFFIX
 }
 
-func keyFile(crt *Cert) string {
+func keyFile(crt Cert) string {
 	return filename(crt.Crt.Subject.CommonName) + KEY_SUFFIX
 }
 

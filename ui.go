@@ -12,6 +12,7 @@ import (
 const (
 	PORT    = 443
 	PORTFIX = 8000
+	LOGGEDUSER="LoggedUser"
 )
 
 // address is a complex bind address
@@ -152,7 +153,7 @@ func fixAddress(a address) address {
 func PrepareServer(smux *http.ServeMux) address {
 	// load config...
 	cfg := LoadConfig()
-	if cfg.IsEmpty() { // if config is empty then run the setup
+	if cfg==nil { // if config is empty then run the setup
 		return PrepareSetup(smux) // always on the default serve mux
 	}
 	// otherwise start the normal app
@@ -161,12 +162,13 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.HandleFunc("/login", login)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
-	return address{webCAURL(cfg), certFile(cfg.WebCert), keyFile(cfg.WebCert), true}
+	fmt.Println("cfg=",cfg)
+	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
 // webCAURL returns the WebCA URL
-func webCAURL(cfg config) string {
-	certName := cfg.WebCert.Crt.Subject.CommonName
+func webCAURL(cfg *config) string {
+	certName := cfg.getWebCert().Crt.Subject.CommonName
 	return fmt.Sprintf("%s:%v", certName, PORT+portFix)
 }
 
@@ -239,7 +241,9 @@ func index(w http.ResponseWriter, r *http.Request) {
 func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !loggedIn(r) {
-			err := templates.ExecuteTemplate(w, "login", copyRequest(PageStatus{}, r))
+			ps:=PageStatus{}
+			ps["URL"]=r.URL
+			err := templates.ExecuteTemplate(w, "login", copyRequest(ps, r))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -254,13 +258,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 	Username := r.FormValue("Username")
 	Password := crypt(r.FormValue("Password"))
 	cfg := LoadConfig()
-	if cfg.Users[Username].Password != Password {
+	u:=cfg.getUser(Username)
+	if u.Password != Password {
 		ps := copyRequest(PageStatus{"Error": tr("Access Denied")}, r)
 		err := templates.ExecuteTemplate(w, "login", ps)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
+	} else {
+		s:=SessionFor(r)
+		s[LOGGEDUSER]=u
+		s.Save()
+		http.Redirect(w, r, r.FormValue("URL"), 302)
 	}
 }
 
@@ -281,6 +291,6 @@ func copyRequest(ps PageStatus, r *http.Request) PageStatus {
 
 // loggedIn returns true if the user of this request is logged in
 func loggedIn(r *http.Request) bool {
-	return SessionFor(r)["loggedUser"] != nil
+	return SessionFor(r)[LOGGEDUSER] != nil
 }
 
