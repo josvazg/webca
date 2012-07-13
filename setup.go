@@ -79,6 +79,7 @@ func setup(w http.ResponseWriter, r *http.Request) {
 		}
 		mailer := readMailer(r)
 		ca, c := certs["CA"], certs["Cert"]
+		user.Password = crypt(user.Password)
 		log.Printf("Running setup...\nuser=%s\nca=%s\nc=%s\nmailer%s\n", user, ca, c, mailer)
 		cacert, err := GenCACert(ca.Name, ca.Duration)
 		if err != nil {
@@ -92,7 +93,7 @@ func setup(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("CA=%s\nCert=%s\n", cacert, cert)
 		log.Printf("Saving config...")
-		if err = NewConfig(user, cacert, cert, mailer).save(); err != nil {
+		if err = NewConfig(user, cacert, cert, mailer).Save(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -108,8 +109,8 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	cfg := LoadConfig()
 	ps := PageStatus{}
 	ps["Message"] = tr("Setup is done!")
-	ps["CAName"] = cfg.webCert().Parent.Crt.Subject.CommonName
-	ps["CertName"] = cfg.webCert().Crt.Subject.CommonName
+	ps["CAName"] = cfg.WebCert.Parent.Crt.Subject.CommonName
+	ps["CertName"] = cfg.WebCert.Crt.Subject.CommonName
 	ps["WebCAURL"] = webCAURL(cfg)
 	err := templates.ExecuteTemplate(w, "restart", ps)
 	if err != nil {

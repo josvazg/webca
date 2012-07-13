@@ -8,11 +8,17 @@ import (
 )
 
 const (
-	WEBCA_CFG  = ".webca.cfg"
+	WEBCA_CFG = ".webca.cfg"
 )
 
 // oneCfg ensures serialized access to configuration
-var oneCfg sync.Mutex
+var oneCfg sync.RWMutex
+
+// cachedCfg prevents from reading the config from file too many times
+var cachedCfg config
+
+// cacheValid tells whether the cachedConfig is valid or not
+var cacheValid bool
 
 // User contains the App's User details
 type User struct {
@@ -24,36 +30,35 @@ type config struct {
 	Mailer  *Mailer
 	Advance int // days before the cert. expires that the notification will be sent
 	Users   map[string]*User
-	Certs   *CertTree
 	WebCert *Cert
+	certs   *CertTree
 }
 
-// Configurer is the interface to access and user Configuration
-type Configurer interface {
-	save() error
-	webCert() *Cert
-	certFile() string
-	keyFile() string
-}
-
-// New Config obtains a new Config
-func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) Configurer {
+// New Config creates a new Config
+func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) config {
 	certs := newCertTree()
 	certs.addCert(cacert)
 	certs.addCert(cert)
-	cfg := &config{&m, 15, make(map[string]*User), certs, cert}
+	cfg := config{Mailer: &m,
+		Advance: 15,
+		Users:   make(map[string]*User),
+		WebCert: cert,
+		certs:   certs}
 	cfg.Users[u.Username] = &u
 	return cfg
 }
 
 // LoadConfig (re)loads a config
 // (It needs to be thread safe)
-func LoadConfig() Configurer {
-	oneCfg.Lock()
-	defer oneCfg.Unlock()
+func LoadConfig() config {
+	oneCfg.RLock()
+	defer oneCfg.RUnlock()
+	if cacheValid {
+		return cachedCfg
+	}
 	_, err := os.Stat(WEBCA_CFG)
 	if os.IsNotExist(err) {
-		return nil
+		return config{}
 	}
 	f, err := os.Open(WEBCA_CFG)
 	handleFatal(err)
@@ -65,14 +70,17 @@ func LoadConfig() Configurer {
 	cfg := config{}
 	err = dec.Decode(&cfg)
 	handleFatal(err)
-	return &cfg
+	cachedCfg = cfg
+	cacheValid = true
+	return cfg
 }
 
-// save puts the current config into persistent storage
+// Save puts the current config into persistent storage
 // (It needs to be thread safe)
-func (cfg *config) save() error {
+func (cfg config) Save() error {
 	oneCfg.Lock()
 	defer oneCfg.Unlock()
+	cacheValid = true // clear cache (it's dirty)
 	f, err := os.OpenFile(WEBCA_CFG, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Println("can't open")
@@ -88,17 +96,14 @@ func (cfg *config) save() error {
 	return nil
 }
 
-// webCert returns this web Certificate
-func (cfg *config) webCert() *Cert {
-	return cfg.WebCert
+// Save puts the current config into persistent storage
+// (It needs to be thread safe)
+func (cfg config) IsEmpty() bool {
+	return cfg.Mailer == nil && cfg.Users == nil && cfg.WebCert == nil && cfg.certs == nil
 }
 
-// webCA returns this web CA Cert
-func (cfg *config) certFile() string {
-	return cfg.WebCert.Crt.Subject.CommonName+CERT_SUFFIX
+// crypt transforms a password to a hashed form avoiding storing it in clear text
+func crypt(passwd string) string {
+	return passwd // TODO decide password encryption later (bcrypt?)
 }
 
-// webCA returns this web CA Cert
-func (cfg *config) keyFile() string {
-	return cfg.WebCert.Crt.Subject.CommonName+KEY_SUFFIX
-}

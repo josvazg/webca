@@ -152,7 +152,7 @@ func fixAddress(a address) address {
 func PrepareServer(smux *http.ServeMux) address {
 	// load config...
 	cfg := LoadConfig()
-	if cfg == nil { // if config is null then run the setup
+	if cfg.IsEmpty() { // if config is empty then run the setup
 		return PrepareSetup(smux) // always on the default serve mux
 	}
 	// otherwise start the normal app
@@ -161,12 +161,12 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.HandleFunc("/login", login)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
-	return address{webCAURL(cfg), cfg.certFile(), cfg.keyFile(), true}
+	return address{webCAURL(cfg), certFile(cfg.WebCert), keyFile(cfg.WebCert), true}
 }
 
 // webCAURL returns the WebCA URL
-func webCAURL(cfg Configurer) string {
-	certName := cfg.webCert().Crt.Subject.CommonName
+func webCAURL(cfg config) string {
+	certName := cfg.WebCert.Crt.Subject.CommonName
 	return fmt.Sprintf("%s:%v", certName, PORT+portFix)
 }
 
@@ -252,9 +252,9 @@ func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 // login handles login action
 func login(w http.ResponseWriter, r *http.Request) {
 	Username := r.FormValue("Username")
-	Password := r.FormValue("Password")
+	Password := crypt(r.FormValue("Password"))
 	cfg := LoadConfig()
-	if cfg.users[Username] != Password {
+	if cfg.Users[Username].Password != Password {
 		ps := copyRequest(PageStatus{"Error": tr("Access Denied")}, r)
 		err := templates.ExecuteTemplate(w, "login", ps)
 		if err != nil {
@@ -262,7 +262,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
 }
 
 // copyRequest copies a request status data on a PageStatus
@@ -277,6 +276,7 @@ func copyRequest(ps PageStatus, r *http.Request) PageStatus {
 			}
 		}
 	}
+	return ps
 }
 
 // loggedIn returns true if the user of this request is logged in

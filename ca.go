@@ -291,6 +291,18 @@ func handleFatal(err error) {
 	}
 }
 
+func certFile(crt *Cert) string {
+	return filename(crt.Crt.Subject.CommonName) + CERT_SUFFIX
+}
+
+func keyFile(crt *Cert) string {
+	return filename(crt.Crt.Subject.CommonName) + KEY_SUFFIX
+}
+
+func filename(name string) string {
+	return name // TODO ensure result is a proper filename without forbidden chars
+}
+
 /*
 func main() {
 	certTree := LoadCertTree(".")
@@ -320,3 +332,4 @@ func main() {
 	//certTree = LoadCertTree(".")
 	//log.Print("Renewed CertTree:\n", certTree)
 }*/
+
