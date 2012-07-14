@@ -415,13 +415,14 @@ function checkPassword(el) {
 </div>
 {{end}}
 <form action="/login" method="post">
+<input type="hidden" id="_SESSION_ID" name="_SESSION_ID" value="{{._SESSION_ID}}"/>
+<input type="hidden" id="URL" name="URL" value="{{.URL}}"/>
 <table class="form">
 <tr><td class="label">{{tr "Username"}}:</td>
     <td><input type="text" class="main" name="Username" value="{{.Username}}">
     </td></tr>
 <tr><td class="label">{{tr "Password"}}:</td>
     <td><input type="password" class="main" name="Password" value="{{.Password}}">
-    <input type="hidden" id="URL" name="URL" value="{{.URL}}"/>
     </td></tr>
 </tr>
 <td class="label" colspan="2" style="text-align: center">

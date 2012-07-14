@@ -237,12 +237,18 @@ func index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// accessControl invokes h IF we are logged in
+// accessControl invokes handler h ONLY IF we are logged in, otherwise the login page
 func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !loggedIn(r) {
+		s,err:=SessionFor(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		log.Println("session id",s[SESSIONID],"logged user=",s[LOGGEDUSER])
+		if s[LOGGEDUSER]==nil {
 			ps:=PageStatus{}
 			ps["URL"]=r.URL
+			ps[SESSIONID]=s[SESSIONID].(string)
 			err := templates.ExecuteTemplate(w, "login", copyRequest(ps, r))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -267,9 +273,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	} else {
-		s:=SessionFor(r)
+		s,err:=SessionFor(r)
+		if err!=nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		s[LOGGEDUSER]=u
 		s.Save()
+		log.Println("s=",s)
+		log.Println("s[SESSIONID]=",s[SESSIONID])
+		r.Form.Set(SESSIONID,(s[SESSIONID]).(string))
 		http.Redirect(w, r, r.FormValue("URL"), 302)
 	}
 }
@@ -286,11 +298,8 @@ func copyRequest(ps PageStatus, r *http.Request) PageStatus {
 			}
 		}
 	}
+	log.Println("request=",r.Form)
+	log.Println("ps=",ps)
 	return ps
-}
-
-// loggedIn returns true if the user of this request is logged in
-func loggedIn(r *http.Request) bool {
-	return SessionFor(r)[LOGGEDUSER] != nil
 }
 
