@@ -3,16 +3,17 @@ package webca
 import (
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
+	"net/url"
+	"log"
 	"strconv"
 	"strings"
 )
 
 const (
-	PORT    = 443
-	PORTFIX = 8000
-	LOGGEDUSER="LoggedUser"
+	PORT       = 443
+	PORTFIX    = 8000
+	LOGGEDUSER = "LoggedUser"
 )
 
 // address is a complex bind address
@@ -153,7 +154,7 @@ func fixAddress(a address) address {
 func PrepareServer(smux *http.ServeMux) address {
 	// load config...
 	cfg := LoadConfig()
-	if cfg==nil { // if config is empty then run the setup
+	if cfg == nil { // if config is empty then run the setup
 		return PrepareSetup(smux) // always on the default serve mux
 	}
 	// otherwise start the normal app
@@ -162,7 +163,6 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.HandleFunc("/login", login)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
-	fmt.Println("cfg=",cfg)
 	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
@@ -240,15 +240,14 @@ func index(w http.ResponseWriter, r *http.Request) {
 // accessControl invokes handler h ONLY IF we are logged in, otherwise the login page
 func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s,err:=SessionFor(r)
+		s, err := SessionFor(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		log.Println("session id",s[SESSIONID],"logged user=",s[LOGGEDUSER])
-		if s[LOGGEDUSER]==nil {
-			ps:=PageStatus{}
-			ps["URL"]=r.URL
-			ps[SESSIONID]=s[SESSIONID].(string)
+		if s[LOGGEDUSER] == nil {
+			ps := PageStatus{}
+			ps["URL"] = r.URL
+			ps[SESSIONID] = s[SESSIONID].(string)
 			err := templates.ExecuteTemplate(w, "login", copyRequest(ps, r))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -264,7 +263,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	Username := r.FormValue("Username")
 	Password := crypt(r.FormValue("Password"))
 	cfg := LoadConfig()
-	u:=cfg.getUser(Username)
+	u := cfg.getUser(Username)
 	if u.Password != Password {
 		ps := copyRequest(PageStatus{"Error": tr("Access Denied")}, r)
 		err := templates.ExecuteTemplate(w, "login", ps)
@@ -273,16 +272,21 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	} else {
-		s,err:=SessionFor(r)
-		if err!=nil {
+		s, err := SessionFor(r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		s[LOGGEDUSER]=u
+		s[LOGGEDUSER] = u
 		s.Save()
-		log.Println("s=",s)
-		log.Println("s[SESSIONID]=",s[SESSIONID])
-		r.Form.Set(SESSIONID,(s[SESSIONID]).(string))
-		http.Redirect(w, r, r.FormValue("URL"), 302)
+		targetUrl:=r.FormValue("URL")
+		if targetUrl=="" {
+			targetUrl="/"
+		}
+		targetUrl, err = addPar(targetUrl, SESSIONID, s[SESSIONID].(string))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		http.Redirect(w, r, targetUrl, 302)
 	}
 }
 
@@ -298,8 +302,18 @@ func copyRequest(ps PageStatus, r *http.Request) PageStatus {
 			}
 		}
 	}
-	log.Println("request=",r.Form)
-	log.Println("ps=",ps)
 	return ps
 }
 
+// addPar adds or resets a parameter id to the given Url
+func addPar(aUrl, key, value string) (string, error) {
+	newUrl, err := url.Parse(aUrl)
+	if err != nil {
+		return "", err
+	}
+	values := newUrl.Query()
+	values.Del(key)
+	values.Add(key, value)
+	newUrl.RawQuery = ""
+	return newUrl.RequestURI() + "?" + values.Encode(), nil
+}

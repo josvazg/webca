@@ -4,12 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
-	"log"
 	"sync"
 )
 
 const (
-	SESSIONID="_SESSION_ID"
+	SESSIONID="__sid"
 )
 
 // session type
@@ -27,23 +26,23 @@ func SessionFor(r *http.Request) (session,error) {
 	smutex.RLock()
 	defer smutex.RUnlock()
 	if id=="" {
-		nid,err:=genSessionId()
+		newid,err:=genSessionId()
 		if err!=nil {
 			return nil,err
 		}
-		id=nid
+		id=newid
+		r.Form[SESSIONID]=[]string{id}
+		r.ParseForm()
 	}
 	if sessions==nil {
 		sessions=make(map[string]session)
 	}
-	s:=sessions[id]
-	log.Println("* s=",s)
-	if s==nil || len(s)==0 {
+	s,ok:=sessions[id]
+	if !ok {
 		s=session{}
 		s[SESSIONID]=id
 		sessions[id]=s
 	}
-	log.Println("session=",s)
 	return clone(s),nil // this copy allows concurrent session access
 }
 
@@ -51,8 +50,7 @@ func SessionFor(r *http.Request) (session,error) {
 func (s session) Save() {
 	smutex.Lock()
 	defer smutex.Unlock()
-	sessions[SESSIONID]=clone(s)
-	log.Println("NEW sessions=",sessions)
+	sessions[s[SESSIONID].(string)]=clone(s)
 }
 
 // clone makes a copy of a session and returns it
