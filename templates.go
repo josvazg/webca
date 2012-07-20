@@ -16,7 +16,16 @@ const (
 </head>
 <body>
 <div class="topbar">
-<h1><img height="80px" src="/img/CASeal.png"/><label>WebCA Setup:<label>
+<table>
+<tr>
+<td>
+<h1>
+<img height="80px" src="/img/CASeal.png"/>
+</h1>
+</td>
+<td class="titleCell">
+<h1>
+WebCA Setup:
 <label class="activated" id="Step1">
 <label class="bigger">1</label>
 <label class="explanation">{{tr "First User & Mailer Configuration"}}</label>
@@ -30,6 +39,9 @@ const (
 <label class="explanation">{{tr "WebCA's Server Certificate"}}</label>
 </label>
 </h1>
+</td>
+</tr>
+</table>
 </div>
 <script type="text/javascript">
 {{template "JSGetID"}}
@@ -401,6 +413,12 @@ function checkPassword(el) {
 {{template "htmlheader" .}}
 
 <h2>{{tr "WebCA's Index"}}</h2>
+<form action="/" method="post">
+<input type="hidden" id="_SESSION_ID" name="_SESSION_ID" value="{{._SESSION_ID}}"/>
+{{range .CAs}}
+<h3>{{.Crt.Subject.CommonName}}</h3>
+{{end}}
+</form>
 
 {{template "htmlfooter"}}
 {{end}}

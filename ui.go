@@ -3,9 +3,9 @@ package webca
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -231,7 +231,10 @@ func readMailer(r *http.Request) Mailer {
 
 // index displays the index page 
 func index(w http.ResponseWriter, r *http.Request) {
-	err := templates.ExecuteTemplate(w, "index", nil)
+	ps := copyRequest(PageStatus{}, r)
+	ct := LoadCertTree(".")
+	ps["CAs"] = ct.Order
+	err := templates.ExecuteTemplate(w, "index", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -278,9 +281,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		s[LOGGEDUSER] = u
 		s.Save()
-		targetUrl:=r.FormValue("URL")
-		if targetUrl=="" {
-			targetUrl="/"
+		targetUrl := r.FormValue("URL")
+		if targetUrl == "" {
+			targetUrl = "/"
 		}
 		targetUrl, err = addPar(targetUrl, SESSIONID, s[SESSIONID].(string))
 		if err != nil {
@@ -317,3 +320,4 @@ func addPar(aUrl, key, value string) (string, error) {
 	newUrl.RawQuery = ""
 	return newUrl.RequestURI() + "?" + values.Encode(), nil
 }
+

@@ -7,6 +7,8 @@ h1 {
 	font-size: 36pt;
 	color: #000030;
 	vertical-align: top;
+	margin-top: 0.25em;
+	margin-bottom: 0.25em;
 }
 
 .bigger {
@@ -25,11 +27,15 @@ a.huge:hover {
 	color: grey;
 }
 
-.shadowed {
+td.titleCell {
+	vertical-align: top;
+}
+
+label.shadowed {
 	color: lightgrey;
 }
 
-.activated {
+label.activated {
 	color: black;
 }
 
@@ -63,7 +69,7 @@ div.loggedUser {
 
 div.topbar {
 	background-color: #E0EBF5;
-	padding: 0.5em;
+	padding: 0.25em;
 }
 
 div.intro {
@@ -92,8 +98,8 @@ div.footer {
 div.toolbar {
 	background-color: #E0EBF5;
 	padding: 0.25em;
-	margin-top: 1em;
-	margin-bottom: 1em;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
 }
 
 div.warn {

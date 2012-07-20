@@ -36,11 +36,11 @@ func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) *config {
 	certs := newCertTree()
 	certs.addCert(cacert)
 	certs.addCert(cert)
-	log.Println("cert=",cert)
+	log.Println("cert=", cert)
 	cfg := &config{Mailer: &m, Advance: 15, Users: make(map[string]User), WebCert: cert,
 		certs: certs}
 	cfg.Users[u.Username] = u
-	log.Println("New Cfg=",cfg)
+	log.Println("New Cfg=", cfg)
 	return cfg
 }
 
@@ -49,7 +49,7 @@ func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) *config {
 func LoadConfig() *config {
 	oneCfg.RLock()
 	defer oneCfg.RUnlock()
-	if cachedCfg!=nil {
+	if cachedCfg != nil {
 		return cachedCfg
 	}
 	_, err := os.Stat(WEBCA_CFG)
