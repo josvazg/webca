@@ -1,6 +1,7 @@
 package webca
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -21,33 +22,40 @@ const (
 	SECS_IN_DAY = 24 * 60 * 60
 )
 
+// Cert holds the certificate the key and links to parent and children
 type Cert struct {
 	Crt    *x509.Certificate
 	Key    *rsa.PrivateKey
-	Parent *Cert // parent (CA) cert if any
+	Parent *Cert   // parent (CA) cert if any
+	Childs []*Cert // children (CA) certs if any
 }
 
-type CertTree struct {
-	Certs  map[string]*Cert   // Name to cert mapper
-	CAkids map[string][]*Cert // CA to cert list
-	Order  []*Cert            // Ordered list of certs
+// Certree holds a certificate tree
+type Certree struct {
+	names   map[string]*Cert
+	roots   []*Cert
+	foreign []*Cert
 }
 
+// GenCACert generates a CA Certificate, that is a self signed certificate
 func GenCACert(name pkix.Name, days int) (*Cert, error) {
 	return genCert(nil, name, days)
 }
 
+// CenCert generates a Certificate signed by another certificate
 func GenCert(parent *Cert, cert string, days int) (*Cert, error) {
 	name := copyName(parent.Crt.Subject)
 	name.CommonName = cert
 	return genCert(parent, name, days)
 }
 
+// RenewCert renews the given certificate for the same duration as before from now
 func RenewCert(cert *Cert) (*Cert, error) {
 	days := int((cert.Crt.NotAfter.Unix() - cert.Crt.NotBefore.Unix()) / SECS_IN_DAY)
 	return genCert(cert.Parent, cert.Crt.Subject, days)
 }
 
+// copyName generates a copy of the given Certificate name
 func copyName(name pkix.Name) pkix.Name {
 	return pkix.Name{CommonName: name.CommonName,
 		StreetAddress:      name.StreetAddress,
@@ -60,6 +68,7 @@ func copyName(name pkix.Name) pkix.Name {
 	}
 }
 
+// Prepare name clears a Certificate name
 func prepareName(name *pkix.Name) {
 	if name.Country == nil {
 		name.StreetAddress = []string{""}
@@ -72,6 +81,7 @@ func prepareName(name *pkix.Name) {
 	}
 }
 
+// genCert generates a certificated signed by itself or by another certificate
 func genCert(p *Cert, name pkix.Name, days int) (*Cert, error) {
 	t := &Cert{}
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
@@ -137,6 +147,7 @@ func genCert(p *Cert, name pkix.Name, days int) (*Cert, error) {
 	return t, nil
 }
 
+// loadCert loads a Cert and Key pair from disk .pem files
 func loadCert(name string) (*Cert, error) {
 	cert := Cert{}
 	kname := name
@@ -177,8 +188,14 @@ func loadCert(name string) (*Cert, error) {
 	return &cert, nil
 }
 
-func LoadCertTree(dir string) *CertTree {
-	ctree := newCertTree()
+// NewCertree generates an empty Certree
+func NewCertree() *Certree {
+	return &Certree{make(map[string]*Cert), make([]*Cert, 0), make([]*Cert, 0)}
+}
+
+// LoadCertree will load all found .pem certs and keys on a Certree
+func LoadCertree(dir string) *Certree {
+	ct := NewCertree()
 	fi, err := os.Lstat(dir)
 	if err != nil {
 		log.Printf("(Warning) Failed to check path "+dir+":", err)
@@ -199,7 +216,7 @@ func LoadCertTree(dir string) *CertTree {
 			if !fi.IsDir() && strings.HasSuffix(fi.Name(), CERT_SUFFIX) &&
 				!strings.HasSuffix(fi.Name(), KEY_SUFFIX) {
 				if crt, err := loadCert(fi.Name()); err == nil {
-					ctree.addCert(crt)
+					ct.add(crt)
 				} else {
 					log.Printf("(Warning) %s", err)
 				}
@@ -210,126 +227,128 @@ func LoadCertTree(dir string) *CertTree {
 		log.Printf("(Warning) Can't read dir "+dir+":", err)
 		return nil
 	}
-	if len(ctree.Certs) == 0 {
+	if len(ct.roots) == 0 && len(ct.foreign) == 0 {
 		return nil
 	}
-	return ctree
+	return ct
 }
 
-func newCertTree() *CertTree {
-	return &CertTree{make(map[string]*Cert, 0), make(map[string][]*Cert, 0), make([]*Cert, 0)}
-}
-
-func (ct *CertTree) insertCert(cert *Cert) {
-	ct.Certs[cert.Crt.Subject.CommonName] = cert
-	ct.Order = append(ct.Order, cert)
-	if cert.Crt.IsCA {
-		kids := ct.CAkids[cert.Crt.Subject.CommonName]
-		if kids == nil {
-			kids = make([]*Cert, 0)
-			ct.CAkids[cert.Crt.Subject.CommonName] = kids
-		} else {
-			for _, kidcrt := range kids {
-				kidcrt.Parent = cert
-			}
-		}
-	} else {
-		kids := ct.CAkids[cert.Crt.Issuer.CommonName]
-		if kids == nil {
-			kids = []*Cert{cert}
-			ct.CAkids[cert.Crt.Issuer.CommonName] = kids
-		} else {
-			ct.CAkids[cert.Crt.Issuer.CommonName] = append(kids, cert)
-		}
-		cacert := ct.Certs[cert.Crt.Issuer.CommonName]
-		if cacert != nil {
-			cert.Parent = cacert
-		}
+// add or replace a certificate in its ordered position within the Cert list
+func (ct *Certree) add(crt *Cert) {
+	cn := ct.names[crt.Crt.Subject.CommonName]
+	if cn == nil { // if unknown, create and register in certnames
+		ct.names[crt.Crt.Subject.CommonName] = crt
+		cn = crt
+	} else { // update cert info otherwise
+		cn.Crt = crt.Crt
+		cn.Key = crt.Key
 	}
-}
-
-func (ct *CertTree) addCert(cert *Cert) {
-	prev := ct.Certs[cert.Crt.Subject.CommonName]
-	if prev == nil {
-		ct.insertCert(cert)
+	// if root just place it and we are done
+	if crt.Crt.Subject.CommonName == crt.Crt.Issuer.CommonName {
+		cn.Parent = cn
+		ct.roots = place(ct.roots, cn)
+		ct.foreign = remove(ct.foreign, cn)
 		return
+	} else { // otherwise we must find the parent and link the kid
+		parent := ct.names[crt.Crt.Issuer.CommonName]
+		if parent == nil { // if parent is unknown, generate a Cert for it and register
+			parent = &Cert{Crt: &x509.Certificate{Subject: copyName(crt.Crt.Issuer)},
+				Childs: make([]*Cert, 0),
+			}
+			ct.names[crt.Crt.Issuer.CommonName] = parent
+		}
+		cn.Parent = parent
+		parent.Childs = place(parent.Childs, cn)
 	}
-	if cert.Crt != nil {
-		prev.Crt = cert.Crt
+	// is this cert part of a known hierarchy or a loose end?
+	current := cn
+	for current.Parent != nil && current.Crt.Issuer.CommonName != current.Crt.Subject.CommonName {
+		current = cn.Parent
 	}
-	if cert.Parent != nil {
-		prev.Parent = cert.Parent
-	}
-	if cert.Key != nil {
-		prev.Key = cert.Key
+	if current.Parent == nil { // loose end goes to rest
+		ct.foreign = place(ct.foreign, cn)
 	}
 }
 
-func (ct *CertTree) String() string {
-	s := "CertTree:\n"
-	for ca, kids := range ct.CAkids {
-		s += ct.Certs[ca].String() + "\n"
-		for _, crt := range kids {
-			s += "    " + crt.String() + "\n"
+// place kid in order under the given childs list and returns the new ordered and appended list
+func place(childs []*Cert, kid *Cert) []*Cert {
+	candidate := kid
+	for i, _ := range childs {
+		if candidate.Crt.Subject.CommonName == kid.Crt.Subject.CommonName { // already there
+			return childs
+		}
+		if candidate.Crt.Subject.CommonName < kid.Crt.Subject.CommonName {
+			candidate, childs[i] = childs[i], candidate
 		}
 	}
-	return s
+	return append(childs, candidate)
 }
 
-func (cert *Cert) String() string {
-	prefix := ""
-	if cert.Crt.IsCA {
-		prefix = "(CA)"
+// remove will return a childs list where there is no kid
+func remove(childs []*Cert, kid *Cert) []*Cert {
+	candidate := kid
+	for i, _ := range childs {
+		if candidate.Crt.Subject.CommonName == kid.Crt.Subject.CommonName { // found, remove
+			for j := i; j < len(childs)-1; j++ {
+				childs[j] = childs[j+1]
+			}
+			return childs[:len(childs)-1]
+		}
 	}
-	return prefix + " " + cert.Crt.Subject.CommonName +
-		" (" + cert.Crt.NotBefore.String() + " - " + cert.Crt.NotAfter.String() + ")"
+	return childs // not found, we return the same list
 }
 
+// String will return the recursive string representation for a Cert
+func (c *Cert) String() string {
+	return printCert(c, "  ")
+}
+
+// printCert returns the recursive string representation for a Cert with a given left margin
+func printCert(c *Cert, margin string) string {
+	str := bytes.NewBufferString(margin)
+	if c.Crt.IsCA {
+		str.WriteString("(CA)")
+	}
+	str.WriteString(c.Crt.Subject.CommonName)
+	str.WriteString(" (" + c.Crt.NotBefore.String() + " - " + c.Crt.NotAfter.String() + ")\n ")
+	for _, k := range c.Childs {
+		str.WriteString(printCert(k, margin+"  "))
+	}
+	return str.String()
+}
+
+// String will return the string representation for a Certree
+func (ct *Certree) String() string {
+	str := bytes.NewBufferString("-- ROOTS --\n")
+	for _, k := range ct.roots {
+		str.WriteString(k.String())
+	}
+	str.WriteString("-- FOREIGN --\n")
+	for _, k := range ct.foreign {
+		str.WriteString(k.String())
+	}
+	return str.String()
+}
+
+// handleFatal will show the fatal error and exit inmediatelly
 func handleFatal(err error) {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 }
 
+// certFile returns the cert filename for a given Certificate
 func certFile(crt Cert) string {
 	return filename(crt.Crt.Subject.CommonName) + CERT_SUFFIX
 }
 
+// keyFile returns the key filename for a given Certificate
 func keyFile(crt Cert) string {
 	return filename(crt.Crt.Subject.CommonName) + KEY_SUFFIX
 }
 
+// filename filters a name to make sure is a legal filename
 func filename(name string) string {
 	return name // TODO ensure result is a proper filename without forbidden chars
 }
-
-/*
-func main() {
-	certTree := LoadCertTree(".")
-	if certTree == nil {
-		certTree = newCertTree()
-		ca, err := GenCACert(pkix.Name{CommonName: "TestCA",
-			StreetAddress:      []string{"Acme st. num. 23"},
-			PostalCode:         []string{"12345"},
-			Locality:           []string{"Acme City"},
-			Province:           []string{"Acme County"},
-			OrganizationalUnit: []string{"Acme Labs"},
-			Organization:       []string{"Acme"},
-			Country:            []string{"AcmeLand"}}, 1095)
-		handleFatal(err)
-		certTree.addCert(ca)
-		for _, crtName := range []string{"server.acme.com", "tys14ubu.rfranco.com"} {
-			crt, err := GenCert(ca, crtName, 365)
-			handleFatal(err)
-			certTree.addCert(crt)
-		}
-	}
-	log.Print(certTree)
-
-	//log.Print("CertTree.first:\n", certTree.first)
-	//RenewCert(nil, certTree.first.ca)
-	//RenewCert(certTree.first.ca, certTree.first.Certs[0])
-	//certTree = LoadCertTree(".")
-	//log.Print("Renewed CertTree:\n", certTree)
-}*/
 

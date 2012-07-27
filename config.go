@@ -28,17 +28,12 @@ type config struct {
 	Advance int // days before the cert. expires that the notification will be sent
 	Users   map[string]User
 	WebCert *Cert
-	certs   *CertTree
 }
 
 // New Config creates a new Config
 func NewConfig(u User, cacert *Cert, cert *Cert, m Mailer) *config {
-	certs := newCertTree()
-	certs.addCert(cacert)
-	certs.addCert(cert)
 	log.Println("cert=", cert)
-	cfg := &config{Mailer: &m, Advance: 15, Users: make(map[string]User), WebCert: cert,
-		certs: certs}
+	cfg := &config{Mailer: &m, Advance: 15, Users: make(map[string]User), WebCert: cert}
 	cfg.Users[u.Username] = u
 	log.Println("New Cfg=", cfg)
 	return cfg

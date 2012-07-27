@@ -232,8 +232,9 @@ func readMailer(r *http.Request) Mailer {
 // index displays the index page 
 func index(w http.ResponseWriter, r *http.Request) {
 	ps := copyRequest(PageStatus{}, r)
-	ct := LoadCertTree(".")
-	ps["CAs"] = ct.Order
+	ct := LoadCertree(".")
+	ps["CAs"] = ct.roots
+	ps["Others"] = ct.foreign
 	err := templates.ExecuteTemplate(w, "index", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
