@@ -20,6 +20,7 @@ const (
 	CERT_SUFFIX = ".pem"
 	KEY_SUFFIX  = ".key.pem"
 	SECS_IN_DAY = 24 * 60 * 60
+	MYFMT="2006/01/02"
 )
 
 // Cert holds the certificate the key and links to parent and children
@@ -160,7 +161,6 @@ func loadCert(name string) (*Cert, error) {
 	if !strings.HasSuffix(name, CERT_SUFFIX) {
 		name = name + CERT_SUFFIX
 	}
-
 	certIn, err := ioutil.ReadFile(name)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open "+name+" for reading: %s", err)
@@ -172,6 +172,10 @@ func loadCert(name string) (*Cert, error) {
 	cert.Crt, err = x509.ParseCertificate(b.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse certificate " + name)
+	}
+	_, err = os.Stat(kname)
+	if os.IsNotExist(err) {
+		return &cert, nil
 	}
 	keyIn, err := ioutil.ReadFile(kname)
 	if err != nil {
@@ -236,7 +240,6 @@ func LoadCertree(dir string) *Certree {
 
 // add or replace a certificate in its ordered position within the Cert list
 func (ct *Certree) add(crt *Cert) {
-	defer summary(crt, ct)
 	cn := ct.names[crt.Crt.Subject.CommonName]
 	if cn == nil { // if unknown, create and register in certnames
 		ct.names[crt.Crt.Subject.CommonName] = crt
@@ -248,8 +251,12 @@ func (ct *Certree) add(crt *Cert) {
 	// if root just place it and we are done
 	if crt.Crt.Subject.CommonName == crt.Crt.Issuer.CommonName {
 		cn.Parent = cn
-		ct.roots = place(ct.roots, cn)
-		ct.foreign = remove(ct.foreign, cn)
+		if crt.Key!=nil {
+			ct.roots = place(ct.roots, cn)
+			ct.foreign = remove(ct.foreign, cn)
+		} else {
+			ct.foreign = place(ct.foreign, cn)			
+		}
 		return
 	} else { // otherwise we must find the parent and link the kid
 		parent := ct.names[crt.Crt.Issuer.CommonName]
@@ -288,7 +295,6 @@ func place(childs []*Cert, kid *Cert) []*Cert {
 
 // remove will return a childs list where there is no kid
 func remove(childs []*Cert, kid *Cert) []*Cert {
-	defer rsummary(kid, childs)
 	for _,child := range kid.Childs {
 		childs=remove(childs,child)
 	}
@@ -317,7 +323,8 @@ func printCert(c *Cert, margin string) string {
 		str.WriteString("(CA)")
 	}
 	str.WriteString(c.Crt.Subject.CommonName)
-	str.WriteString(" (" + c.Crt.NotBefore.String() + " - " + c.Crt.NotAfter.String() + ")\n ")
+	str.WriteString(" (" + c.Crt.NotBefore.Format(MYFMT) + " - " + 
+		c.Crt.NotAfter.Format(MYFMT) + ")\n ")
 	for _, k := range c.Childs {
 		str.WriteString(printCert(k, margin+"  "))
 	}

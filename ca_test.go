@@ -3,7 +3,6 @@ package webca
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"fmt"
 	"os"
 	"testing"
 )
@@ -13,14 +12,6 @@ func NewCert(name string, childs ... *Cert) *Cert {
 					Subject: pkix.Name{
 						CommonName: name}}, 
 				Childs: childs}
-}
-
-func summary(crt *Cert, ct *Certree) {
-	fmt.Println("adding",crt,"leaves",ct)
-}
-
-func rsummary(crt *Cert, childs []*Cert) {
-	fmt.Println("removing",crt,"leaves",childs)
 }
 
 func loadTestData() *Certree {
@@ -74,13 +65,8 @@ func TestCA(t *testing.T) {
 	for _, crt := range ct0.foreign {
 		gen(t, crt)
 	}
-	dieOnError(t, os.Remove("SomeCA0.pem"))
 	dieOnError(t, os.Remove("SomeCA0.key.pem"))
-	dieOnError(t, os.Remove("SomeCA1.pem"))
 	dieOnError(t, os.Remove("SomeCA1.key.pem"))
-	for _,c :=range ct0.foreign {
-		c.Crt.IsCA=false
-	}
 	ct:=LoadCertree(".")
 	s0 := ct0.String()
 	s := ct.String()
