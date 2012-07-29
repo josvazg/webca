@@ -3,59 +3,49 @@ package webca
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
-	//"os"
+	"fmt"
+	"os"
 	"testing"
 )
 
-func buildPath(c *Cert, names ...string) *Cert {
-	tmpl := pkix.Name{StreetAddress: []string{"Acme st. num. 23"},
-		PostalCode:         []string{"12345"},
-		Locality:           []string{"Acme City"},
-		Province:           []string{"Acme County"},
-		OrganizationalUnit: []string{"Acme Labs"},
-		Organization:       []string{"Acme"},
-		Country:            []string{"AcmeLand"}}
-	if c == nil {
-		c = &Cert{}
-	}
-	crt := c
-	p := (*Cert)(nil)
-	for _, name := range names {
-		if crt == nil {
-			crt = &Cert{}
-			crt.Parent = crt
-		}
-		sbj := copyName(tmpl)
-		sbj.CommonName = name
-		crt.Crt = &x509.Certificate{Subject: sbj}
-		crt.Parent = p
-		if p != nil {
-			p.Childs = append(p.Childs, crt)
-		}
-		p = crt
-		crt = nil
-	}
-	return c
+func NewCert(name string, childs ... *Cert) *Cert {
+	return &Cert{Crt: &x509.Certificate{
+					Subject: pkix.Name{
+						CommonName: name}}, 
+				Childs: childs}
+}
+
+func summary(crt *Cert, ct *Certree) {
+	fmt.Println("adding",crt,"leaves",ct)
+}
+
+func rsummary(crt *Cert, childs []*Cert) {
+	fmt.Println("removing",crt,"leaves",childs)
 }
 
 func loadTestData() *Certree {
 	ct := NewCertree()
-	root1 := buildPath(nil, "TestCA1", "Intermediate1", "server1")
-	buildPath(root1, "TestCA1", "Intermediate1", "server2")
-	buildPath(root1, "TestCA1", "Intermediate2", "serverA")
-	buildPath(root1, "TestCA1", "Intermediate2", "serverB")
-	ct.roots = append(ct.roots, root1)
-	root2 := buildPath(nil, "TestCA2", "Intermediate2", "2server1")
-	buildPath(root2, "TestCA2", "Intermediate1", "2server2")
-	buildPath(root2, "TestCA2", "Intermediate2", "2serverA")
-	ct.roots = append(ct.roots, root2)
-	ct.foreign = append(ct.foreign, buildPath(nil, "SomeCA0", "externalserver1"))
-	ct.foreign = append(ct.foreign, buildPath(nil, "SomeCA1", "externalserverA"))
+	ct.roots=[]*Cert{
+		NewCert("TestCA1",
+			NewCert("Intermediate1",
+				NewCert("server1"),
+				NewCert("server2"),
+				NewCert("server3"))),
+		NewCert("TestCA2",
+			NewCert("Intermediate2",
+				NewCert("2serverA"),
+				NewCert("2serverB"))),
+	}
+	ct.foreign=[]*Cert{
+		NewCert("SomeCA0",
+			NewCert("externalserver1")),
+		NewCert("SomeCA1",
+			NewCert("externalserverA")),
+	}
 	return ct
 }
 
 func gen(t *testing.T, cert *Cert) *Cert {
-	t.Log("Generating " + cert.Crt.Subject.CommonName + "...")
 	var gcert *Cert
 	var err error
 	if cert.Parent == nil {
@@ -76,9 +66,7 @@ func gen(t *testing.T, cert *Cert) *Cert {
 
 func TestCA(t *testing.T) {
 	ct0 := loadTestData()
-	t.Log(ct0)
-	t.Fatal("Fake failure")
-	/*dieOnError(t, os.MkdirAll("tests", 0750))
+	dieOnError(t, os.MkdirAll("tests", 0750))
 	dieOnError(t, os.Chdir("tests"))
 	for i, crt := range ct0.roots {
 		ct0.roots[i] = gen(t, crt)
@@ -90,8 +78,10 @@ func TestCA(t *testing.T) {
 	dieOnError(t, os.Remove("SomeCA0.key.pem"))
 	dieOnError(t, os.Remove("SomeCA1.pem"))
 	dieOnError(t, os.Remove("SomeCA1.key.pem"))
-	ct := LoadCertree(".")
-
+	for _,c :=range ct0.foreign {
+		c.Crt.IsCA=false
+	}
+	ct:=LoadCertree(".")
 	s0 := ct0.String()
 	s := ct.String()
 	if s != s0 {
@@ -100,7 +90,7 @@ func TestCA(t *testing.T) {
 		t.Fatal("Template test and reloaded tree do not match!")
 	}
 	dieOnError(t, os.Chdir(".."))
-	dieOnError(t, os.RemoveAll("tests"))*/
+	dieOnError(t, os.RemoveAll("tests"))
 
 	//log.Print(certTree)
 	//log.Print("CertTree.first:\n", certTree.first)

@@ -216,6 +216,7 @@ func LoadCertree(dir string) *Certree {
 			if !fi.IsDir() && strings.HasSuffix(fi.Name(), CERT_SUFFIX) &&
 				!strings.HasSuffix(fi.Name(), KEY_SUFFIX) {
 				if crt, err := loadCert(fi.Name()); err == nil {
+
 					ct.add(crt)
 				} else {
 					log.Printf("(Warning) %s", err)
@@ -235,6 +236,7 @@ func LoadCertree(dir string) *Certree {
 
 // add or replace a certificate in its ordered position within the Cert list
 func (ct *Certree) add(crt *Cert) {
+	defer summary(crt, ct)
 	cn := ct.names[crt.Crt.Subject.CommonName]
 	if cn == nil { // if unknown, create and register in certnames
 		ct.names[crt.Crt.Subject.CommonName] = crt
@@ -263,10 +265,10 @@ func (ct *Certree) add(crt *Cert) {
 	// is this cert part of a known hierarchy or a loose end?
 	current := cn
 	for current.Parent != nil && current.Crt.Issuer.CommonName != current.Crt.Subject.CommonName {
-		current = cn.Parent
+		current = current.Parent
 	}
 	if current.Parent == nil { // loose end goes to rest
-		ct.foreign = place(ct.foreign, cn)
+		ct.foreign = place(ct.foreign, current)
 	}
 }
 
@@ -274,10 +276,10 @@ func (ct *Certree) add(crt *Cert) {
 func place(childs []*Cert, kid *Cert) []*Cert {
 	candidate := kid
 	for i, _ := range childs {
-		if candidate.Crt.Subject.CommonName == kid.Crt.Subject.CommonName { // already there
+		if candidate.Crt.Subject.CommonName == childs[i].Crt.Subject.CommonName { // already there
 			return childs
 		}
-		if candidate.Crt.Subject.CommonName < kid.Crt.Subject.CommonName {
+		if candidate.Crt.Subject.CommonName < childs[i].Crt.Subject.CommonName {
 			candidate, childs[i] = childs[i], candidate
 		}
 	}
@@ -286,9 +288,14 @@ func place(childs []*Cert, kid *Cert) []*Cert {
 
 // remove will return a childs list where there is no kid
 func remove(childs []*Cert, kid *Cert) []*Cert {
+	defer rsummary(kid, childs)
+	for _,child := range kid.Childs {
+		childs=remove(childs,child)
+	}
 	candidate := kid
 	for i, _ := range childs {
-		if candidate.Crt.Subject.CommonName == kid.Crt.Subject.CommonName { // found, remove
+		// if found, remove
+		if candidate.Crt.Subject.CommonName == childs[i].Crt.Subject.CommonName { 
 			for j := i; j < len(childs)-1; j++ {
 				childs[j] = childs[j+1]
 			}
