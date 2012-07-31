@@ -1,6 +1,7 @@
 package webca
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"log"
@@ -91,6 +92,21 @@ func (ps PageStatus) IsSelected(duration int) bool {
 	}
 	cs := crt.(*CertSetup)
 	return cs.Duration == duration
+}
+
+func (ps PageStatus) Url(path string, argpairs ... string) string {
+	buf:=bytes.NewBufferString(path)
+	join:="?"
+	for _,argpair := range argpairs {
+		parts:=strings.SplitN(argpair, "=", 1)
+		if len(parts)==1 {
+			buf.WriteString(join+url.QueryEscape(parts[0]))
+		} else if len(parts==2) {
+			buf.WriteString(join+url.QueryEscape(parts[0])+"="+url.QueryEscape(parts[0]))
+		}
+		join="&"
+	}
+	return buf.String()
 }
 
 // tr is the app translation function
