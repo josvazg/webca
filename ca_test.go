@@ -7,16 +7,16 @@ import (
 	"testing"
 )
 
-func NewCert(name string, childs ... *Cert) *Cert {
+func NewCert(name string, childs ...*Cert) *Cert {
 	return &Cert{Crt: &x509.Certificate{
-					Subject: pkix.Name{
-						CommonName: name}}, 
-				Childs: childs}
+		Subject: pkix.Name{
+			CommonName: name}},
+		Childs: childs}
 }
 
 func loadTestData() *Certree {
 	ct := NewCertree()
-	ct.roots=[]*Cert{
+	ct.roots = []*Cert{
 		NewCert("TestCA1",
 			NewCert("Intermediate1",
 				NewCert("server1"),
@@ -27,7 +27,7 @@ func loadTestData() *Certree {
 				NewCert("2serverA"),
 				NewCert("2serverB"))),
 	}
-	ct.foreign=[]*Cert{
+	ct.foreign = []*Cert{
 		NewCert("SomeCA0",
 			NewCert("externalserver1")),
 		NewCert("SomeCA1",
@@ -67,7 +67,7 @@ func TestCA(t *testing.T) {
 	}
 	dieOnError(t, os.Remove("SomeCA0.key.pem"))
 	dieOnError(t, os.Remove("SomeCA1.key.pem"))
-	ct:=LoadCertree(".")
+	ct := LoadCertree(".")
 	s0 := ct0.String()
 	s := ct.String()
 	if s != s0 {
@@ -85,4 +85,3 @@ func TestCA(t *testing.T) {
 	//certTree = LoadCertTree(".")
 	//log.Print("Renewed CertTree:\n", certTree)
 }
-

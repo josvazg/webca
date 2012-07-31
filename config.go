@@ -99,4 +99,3 @@ func (cfg *config) getUser(username string) User {
 func crypt(passwd string) string {
 	return passwd // TODO decide password encryption later (bcrypt?)
 }
-

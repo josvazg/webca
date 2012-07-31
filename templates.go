@@ -60,7 +60,7 @@ WebCA Setup:
 {{template "style.css"}}
 </style>
   <div class="loggedUser">
-{{if .User}} Logged as: {{.User.Email}} (<a href="/logout">logout</a>)
+{{if .LoggedUser}} Logged as: {{.LoggedUser.Fullname}} (<a href="/logout">logout</a>)
 {{end}}
   </div>
 </div>
@@ -160,7 +160,19 @@ WebCA Setup:
 <tr><td class="label">{{tr "Repeat Password"}}:</td>
     <td class="label"><input type="password" id="M.Password2" name="M.Password2" 
         onkeyup="checkPassword(this)"></td></tr>
-{{end}}`
+{{end}}
+
+{{define "certNode"}}
+<div class="indent">
+{{range .}}
+<span class="Cert"><a 
+href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></span>
+<span class="period">{{showPeriod .Crt}}</span>
+{{template "certNode" .Childs}}
+{{end}}
+</div>
+{{end}}
+`
 
 	//
 	//
@@ -397,7 +409,8 @@ function checkPassword(el) {
 <div class="mediumExplanation" id="text">
 {{tr "You'll need to install the CA certificate."}} <p/>
 <a href="crt/{{.CAName}}.pem">{{tr "Download CA certificate here"}}</a><p/>
-{{tr "In case something goes wrong with the download the file you are looking for is"}}: <b>{{.CAName}}.pem</b> <p/>
+{{tr "In case something goes wrong with the download the file you are looking for is"}}: 
+<b>{{.CAName}}.pem</b> <p/>
 <p/>
 {{tr "Once you are done, you can start using your WebCA right away..."}} <p/>
 <a href="https://{{.WebCAURL}}">{{tr "Click here to go into your WebCA"}}</a><p/>
@@ -408,20 +421,6 @@ function checkPassword(el) {
 {{template "htmlfooter"}}
 {{end}}
 
-
-{{define "index"}}
-{{template "htmlheader" .}}
-
-<h2>{{tr "WebCA's Index"}}</h2>
-<form action="/" method="post">
-<input type="hidden" id="_SESSION_ID" name="_SESSION_ID" value="{{._SESSION_ID}}"/>
-{{range .CAs}}
-<h3>{{.Crt.Subject.CommonName}}</h3>
-{{end}}
-</form>
-
-{{template "htmlfooter"}}
-{{end}}
 
 {{define "login"}}
 {{template "htmlheader" .}}
@@ -453,6 +452,32 @@ function checkPassword(el) {
 {{template "htmlfooter"}}
 {{end}}
 
+
+{{define "index"}}
+{{template "htmlheader" .}}
+<h2>{{tr "WebCA's Index"}}</h2>
+<form action="/" method="post">
+<input type="hidden" id="_SESSION_ID" name="_SESSION_ID" value="{{._SESSION_ID}}"/>
+<div class="data">
+<div class="CATitle">{{tr "Locally managed CAs:"}}</div>
+{{range .CAs}}
+<span class="CA"><a 
+href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></span>
+<span class="period">{{showPeriod .Crt}}</span></span>
+{{template "certNode" .Childs}}
+{{end}}
+<div class="CA"><a href="/new">+ {{tr "Add more..."}}</a></div>
+<div class="CATitle">{{tr "Externally managed CAs:"}}</div>
+{{range .Others}}
+<span class="CA"><a 
+href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></span>
+<span class="period">{{showPeriod .Crt}}</span>
+{{template "certNode" .Childs}}
+{{end}}
+<div class="CA"><a href="/import">+ {{tr "Import more..."}}</a></div>
+</div>
+</form>
+{{template "htmlfooter"}}
+{{end}}
 `
 )
-

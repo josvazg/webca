@@ -22,6 +22,9 @@ type address struct {
 	tls                     bool
 }
 
+// fakedLogin for development environments
+var fakedLogin bool
+
 // portFix contains the port correction when low ports are not permited
 var portFix int
 
@@ -62,7 +65,7 @@ func init() {
 	templates = template.New("webcaTemplates")
 	templates.Funcs(template.FuncMap{
 		// The name "title" is what the function will be called in the template text.
-		"tr": tr, "indexOf": indexOf,
+		"tr": tr, "indexOf": indexOf, "showPeriod": showPeriod,
 	})
 	template.Must(templates.Parse(htmlTemplates))
 	template.Must(templates.Parse(jsTemplates))
@@ -91,8 +94,11 @@ func (ps PageStatus) IsSelected(duration int) bool {
 }
 
 // tr is the app translation function
-func tr(s string) string {
-	return s
+func tr(s string, args ...interface{}) string {
+	if args == nil || len(args) == 0 {
+		return s
+	}
+	return fmt.Sprintf(s, args...)
 }
 
 // indexOf allows to access strings on a string array
@@ -249,6 +255,12 @@ func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		if s[LOGGEDUSER] == nil {
+			if fakedLogin {
+				s[LOGGEDUSER] = User{"fuser", "Faked User", "****", "fuser@fuser.com"}
+				s.Save()
+				redirectWithSession(s, w, r)
+				return
+			}
 			ps := PageStatus{}
 			ps["URL"] = r.URL
 			ps[SESSIONID] = s[SESSIONID].(string)
@@ -282,21 +294,30 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		s[LOGGEDUSER] = u
 		s.Save()
-		targetUrl := r.FormValue("URL")
-		if targetUrl == "" {
-			targetUrl = "/"
-		}
-		targetUrl, err = addPar(targetUrl, SESSIONID, s[SESSIONID].(string))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-		http.Redirect(w, r, targetUrl, 302)
+		redirectWithSession(s, w, r)
 	}
+}
+
+// redirectWithSession redirects to the same URL but adding the session request parameter
+func redirectWithSession(s session, w http.ResponseWriter, r *http.Request) {
+	targetUrl := r.FormValue("URL")
+	if targetUrl == "" {
+		targetUrl = "/"
+	}
+	targetUrl, err := addPar(targetUrl, SESSIONID, s[SESSIONID].(string))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	http.Redirect(w, r, targetUrl, 302)
 }
 
 // copyRequest copies a request status data on a PageStatus
 func copyRequest(ps PageStatus, r *http.Request) PageStatus {
 	r.ParseForm()
+	s, err := SessionFor(r)
+	if err == nil {
+		ps[LOGGEDUSER] = s[LOGGEDUSER]
+	}
 	for k, v := range r.Form {
 		if v != nil {
 			if len(v) == 1 {
@@ -322,3 +343,7 @@ func addPar(aUrl, key, value string) (string, error) {
 	return newUrl.RequestURI() + "?" + values.Encode(), nil
 }
 
+// fakeLogin fakes the login process
+func FakeLogin() {
+	fakedLogin = true
+}

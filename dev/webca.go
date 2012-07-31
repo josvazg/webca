@@ -9,5 +9,6 @@ import (
 
 func main() {
 	webca.PrepareServer(http.DefaultServeMux)
+	webca.FakeLogin()
 	slave.Main()
 }

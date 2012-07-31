@@ -19,8 +19,7 @@ import (
 const (
 	CERT_SUFFIX = ".pem"
 	KEY_SUFFIX  = ".key.pem"
-	SECS_IN_DAY = 24 * 60 * 60
-	MYFMT="2006/01/02"
+	MYFMT       = "2006/01/02"
 )
 
 // Cert holds the certificate the key and links to parent and children
@@ -52,7 +51,7 @@ func GenCert(parent *Cert, cert string, days int) (*Cert, error) {
 
 // RenewCert renews the given certificate for the same duration as before from now
 func RenewCert(cert *Cert) (*Cert, error) {
-	days := int((cert.Crt.NotAfter.Unix() - cert.Crt.NotBefore.Unix()) / SECS_IN_DAY)
+	days := int(cert.Crt.NotAfter.Sub(cert.Crt.NotBefore).Hours() / 24)
 	return genCert(cert.Parent, cert.Crt.Subject, days)
 }
 
@@ -251,11 +250,11 @@ func (ct *Certree) add(crt *Cert) {
 	// if root just place it and we are done
 	if crt.Crt.Subject.CommonName == crt.Crt.Issuer.CommonName {
 		cn.Parent = cn
-		if crt.Key!=nil {
+		if crt.Key != nil {
 			ct.roots = place(ct.roots, cn)
 			ct.foreign = remove(ct.foreign, cn)
 		} else {
-			ct.foreign = place(ct.foreign, cn)			
+			ct.foreign = place(ct.foreign, cn)
 		}
 		return
 	} else { // otherwise we must find the parent and link the kid
@@ -295,13 +294,13 @@ func place(childs []*Cert, kid *Cert) []*Cert {
 
 // remove will return a childs list where there is no kid
 func remove(childs []*Cert, kid *Cert) []*Cert {
-	for _,child := range kid.Childs {
-		childs=remove(childs,child)
+	for _, child := range kid.Childs {
+		childs = remove(childs, child)
 	}
 	candidate := kid
 	for i, _ := range childs {
 		// if found, remove
-		if candidate.Crt.Subject.CommonName == childs[i].Crt.Subject.CommonName { 
+		if candidate.Crt.Subject.CommonName == childs[i].Crt.Subject.CommonName {
 			for j := i; j < len(childs)-1; j++ {
 				childs[j] = childs[j+1]
 			}
@@ -323,7 +322,7 @@ func printCert(c *Cert, margin string) string {
 		str.WriteString("(CA)")
 	}
 	str.WriteString(c.Crt.Subject.CommonName)
-	str.WriteString(" (" + c.Crt.NotBefore.Format(MYFMT) + " - " + 
+	str.WriteString(" (" + c.Crt.NotBefore.Format(MYFMT) + " - " +
 		c.Crt.NotAfter.Format(MYFMT) + ")\n ")
 	for _, k := range c.Childs {
 		str.WriteString(printCert(k, margin+"  "))
@@ -366,3 +365,10 @@ func filename(name string) string {
 	return name // TODO ensure result is a proper filename without forbidden chars
 }
 
+// showPeriod shows the period of a Certificate
+func showPeriod(crt *x509.Certificate) string {
+	from := crt.NotBefore.Format(MYFMT)
+	to := crt.NotAfter.Format(MYFMT)
+	duration := int(crt.NotAfter.Sub(time.Now()).Hours() / 24)
+	return tr("From %s to %s (%ddays to go)", from, to, duration)
+}

@@ -165,3 +165,38 @@ label.notice {
 	padding: .4em;
 }
 
+.data {
+	text-align: center;
+}
+
+.CATitle {
+	/*background-color: #E0EBF5;*/
+	text-align: center;
+	font-size: 18pt;
+	font-weight: bold;
+	margin-top: 1em; 
+	margin-bottom: 0.5em;
+}
+
+.CA  {
+	display: inline-block;
+	font-size: 16pt;
+	margin-right: 1em;
+	margin-bottom: 1em;
+}
+
+.Cert {
+	display: inline-block;
+	font-size: 14pt;
+	margin-right: 1em;
+	margin-bottom: 0.5em;
+}
+
+.indent  {
+	padding-left: 3em;
+}
+
+.period {
+	font-size: 12pt;
+	font-style: italic;
+}
