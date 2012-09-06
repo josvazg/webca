@@ -456,13 +456,11 @@ function checkPassword(el) {
 {{define "index"}}
 {{template "htmlheader" .}}
 <h2>{{tr "WebCA's Index"}}</h2>
-<form action="/" method="post">
-<input type="hidden" id="_SESSION_ID" name="_SESSION_ID" value="{{._SESSION_ID}}"/>
 <div class="data">
 <div class="CATitle">{{tr "Locally managed CAs:"}}</div>
 {{range .CAs}}
 <span class="CA"><a 
-href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></span>
+>{{.Crt.Subject.CommonName}}</a></span>
 <span class="period">{{showPeriod .Crt}}</span></span>
 {{template "certNode" .Childs}}
 {{end}}
@@ -470,14 +468,17 @@ href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></s
 <div class="CATitle">{{tr "Externally managed CAs:"}}</div>
 {{range .Others}}
 <span class="CA"><a 
-href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></span>
+>{{.Crt.Subject.CommonName}}</a></span>
 <span class="period">{{showPeriod .Crt}}</span>
 {{template "certNode" .Childs}}
 {{end}}
-<div class="CA"><a href="/import">+ {{tr "Import more..."}}</a></div>
+<div class="CA"><a >+ {{tr "Import more..."}}</a></div>
 </div>
-</form>
 {{template "htmlfooter"}}
 {{end}}
 `
 )
+
+// href='{{.Url "edit" "cert" .Crt.Subject.CommonName}}'
+// href='{{.Url "edit" "cert" .Crt.Subject.CommonName}}'
+// href='{{.Url "import"}}'

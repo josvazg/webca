@@ -94,17 +94,17 @@ func (ps PageStatus) IsSelected(duration int) bool {
 	return cs.Duration == duration
 }
 
-func (ps PageStatus) Url(path string, argpairs ... string) string {
-	buf:=bytes.NewBufferString(path)
-	join:="?"
-	for _,argpair := range argpairs {
-		parts:=strings.SplitN(argpair, "=", 1)
-		if len(parts)==1 {
-			buf.WriteString(join+url.QueryEscape(parts[0]))
-		} else if len(parts==2) {
-			buf.WriteString(join+url.QueryEscape(parts[0])+"="+url.QueryEscape(parts[0]))
+func (ps PageStatus) Url(path string, args ... string) string {
+	buf:=bytes.NewBufferString(path+"?")
+	fmt.Println("ps[SESSIONID]=",ps[SESSIONID])
+	buf.WriteString(url.QueryEscape(SESSIONID)+"=")
+	join:="&"
+	for n,arg := range args {
+		s:=join
+		if (n%2)!=0 {
+			s="="
 		}
-		join="&"
+		buf.WriteString(s+url.QueryEscape(arg))
 	}
 	return buf.String()
 }
@@ -257,6 +257,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 	ct := LoadCertree(".")
 	ps["CAs"] = ct.roots
 	ps["Others"] = ct.foreign
+	fmt.Println("Url=",ps.Url("edit","cert","name"))
 	err := templates.ExecuteTemplate(w, "index", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -332,7 +333,7 @@ func copyRequest(ps PageStatus, r *http.Request) PageStatus {
 	r.ParseForm()
 	s, err := SessionFor(r)
 	if err == nil {
-		ps[LOGGEDUSER] = s[LOGGEDUSER]
+		ps["Session"] = s
 	}
 	for k, v := range r.Form {
 		if v != nil {

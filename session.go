@@ -9,6 +9,7 @@ import (
 
 const (
 	SESSIONID = "__sid"
+	ID = "Id"
 )
 
 // session type
@@ -40,7 +41,7 @@ func SessionFor(r *http.Request) (session, error) {
 	s, ok := sessions[id]
 	if !ok {
 		s = session{}
-		s[SESSIONID] = id
+		s[ID] = id
 		sessions[id] = s
 	}
 	return clone(s), nil // this copy allows concurrent session access
