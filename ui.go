@@ -1,12 +1,10 @@
 package webca
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -14,6 +12,7 @@ import (
 const (
 	PORT       = 443
 	PORTFIX    = 8000
+	REQUEST    = "Request"
 	LOGGEDUSER = "LoggedUser"
 )
 
@@ -92,21 +91,6 @@ func (ps PageStatus) IsSelected(duration int) bool {
 	}
 	cs := crt.(*CertSetup)
 	return cs.Duration == duration
-}
-
-func (ps PageStatus) Url(path string, args ... string) string {
-	buf:=bytes.NewBufferString(path+"?")
-	fmt.Println("ps[SESSIONID]=",ps[SESSIONID])
-	buf.WriteString(url.QueryEscape(SESSIONID)+"=")
-	join:="&"
-	for n,arg := range args {
-		s:=join
-		if (n%2)!=0 {
-			s="="
-		}
-		buf.WriteString(s+url.QueryEscape(arg))
-	}
-	return buf.String()
 }
 
 // tr is the app translation function
@@ -253,12 +237,16 @@ func readMailer(r *http.Request) Mailer {
 
 // index displays the index page 
 func index(w http.ResponseWriter, r *http.Request) {
-	ps := copyRequest(PageStatus{}, r)
+	ps := newPageStatus(r)
+	s,err:=SessionFor(w,r)
+	if err!=nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	ps[LOGGEDUSER]=s[LOGGEDUSER]
 	ct := LoadCertree(".")
 	ps["CAs"] = ct.roots
 	ps["Others"] = ct.foreign
-	fmt.Println("Url=",ps.Url("edit","cert","name"))
-	err := templates.ExecuteTemplate(w, "index", ps)
+	err = templates.ExecuteTemplate(w, "index", ps)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -267,7 +255,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 // accessControl invokes handler h ONLY IF we are logged in, otherwise the login page
 func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s, err := SessionFor(r)
+		s, err := SessionFor(w,r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -275,13 +263,12 @@ func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 			if fakedLogin {
 				s[LOGGEDUSER] = User{"fuser", "Faked User", "****", "fuser@fuser.com"}
 				s.Save()
-				redirectWithSession(s, w, r)
+				h(w, r)
 				return
 			}
-			ps := PageStatus{}
-			ps["URL"] = r.URL
-			ps[SESSIONID] = s[SESSIONID].(string)
-			err := templates.ExecuteTemplate(w, "login", copyRequest(ps, r))
+			ps := newPageStatus(r)
+			ps[SESSIONID] = s.Id()
+			err := templates.ExecuteTemplate(w, "login", ps)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -298,66 +285,33 @@ func login(w http.ResponseWriter, r *http.Request) {
 	cfg := LoadConfig()
 	u := cfg.getUser(Username)
 	if u.Password != Password {
-		ps := copyRequest(PageStatus{"Error": tr("Access Denied")}, r)
+		ps:=newPageStatus(r)
+		ps["Error"]=tr("Access Denied")
 		err := templates.ExecuteTemplate(w, "login", ps)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	} else {
-		s, err := SessionFor(r)
+		s, err := SessionFor(w,r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		s[LOGGEDUSER] = u
 		s.Save()
-		redirectWithSession(s, w, r)
-	}
-}
-
-// redirectWithSession redirects to the same URL but adding the session request parameter
-func redirectWithSession(s session, w http.ResponseWriter, r *http.Request) {
-	targetUrl := r.FormValue("URL")
-	if targetUrl == "" {
-		targetUrl = "/"
-	}
-	targetUrl, err := addPar(targetUrl, SESSIONID, s[SESSIONID].(string))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	http.Redirect(w, r, targetUrl, 302)
-}
-
-// copyRequest copies a request status data on a PageStatus
-func copyRequest(ps PageStatus, r *http.Request) PageStatus {
-	r.ParseForm()
-	s, err := SessionFor(r)
-	if err == nil {
-		ps["Session"] = s
-	}
-	for k, v := range r.Form {
-		if v != nil {
-			if len(v) == 1 {
-				ps[k] = v[0]
-			} else {
-				ps[k] = v
-			}
+		targetUrl := r.FormValue("URL")
+		if targetUrl == "" {
+			targetUrl = "/"
 		}
+		http.Redirect(w, r, targetUrl, 302)
 	}
-	return ps
 }
 
-// addPar adds or resets a parameter id to the given Url
-func addPar(aUrl, key, value string) (string, error) {
-	newUrl, err := url.Parse(aUrl)
-	if err != nil {
-		return "", err
-	}
-	values := newUrl.Query()
-	values.Del(key)
-	values.Add(key, value)
-	newUrl.RawQuery = ""
-	return newUrl.RequestURI() + "?" + values.Encode(), nil
+// newPageStatus generates a new PageStatus including the Request
+func newPageStatus(r *http.Request) PageStatus {
+	ps := PageStatus{}
+	ps[REQUEST]=r
+	return ps
 }
 
 // fakeLogin fakes the login process

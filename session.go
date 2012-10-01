@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	SESSIONID = "__sid"
-	ID = "Id"
+	SESSIONID = "goSessionId"
 )
 
 // session type
@@ -21,55 +20,70 @@ var sessions map[string]session
 // mutex lock for session access
 var smutex sync.RWMutex
 
-// SessionFor gets a session bound to a Request by and Session ID
-func SessionFor(r *http.Request) (session, error) {
-	id := sessionId(r)
+// requestSessionId retrieves the session cookie from the request or creates a new one
+func requestSessionId(w http.ResponseWriter, r *http.Request) (string,error) {
+	cookie,e:=r.Cookie(SESSIONID)
+	if e!=nil && e!=http.ErrNoCookie {
+		return "",e
+	}
+	if e==http.ErrNoCookie || cookie==nil {
+		id,e:=genId()
+		if e!=nil {
+			return "",e
+		}
+		cookie=&http.Cookie{Name:SESSIONID,Value:id,Path:"/", MaxAge:0}
+		http.SetCookie(w,cookie)
+		r.AddCookie(cookie) // for future references of this request
+	}	
+	return cookie.Value,nil
+}
+
+// SessionFor gets a session bound to a Request by Session ID
+func SessionFor(w http.ResponseWriter, r *http.Request) (session, error) {
+	id,e := requestSessionId(w,r)
+	if e!=nil {
+		return nil, e
+	}
 	smutex.RLock()
 	defer smutex.RUnlock()
-	if id == "" {
-		newid, err := genSessionId()
-		if err != nil {
-			return nil, err
-		}
-		id = newid
-		r.Form[SESSIONID] = []string{id}
-		r.ParseForm()
+	if sessions==nil {
+		sessions=make(map[string]session)
 	}
-	if sessions == nil {
-		sessions = make(map[string]session)
+	s := sessions[id]
+	if s==nil {
+		s=make(session)
+		s[SESSIONID]=id
+		sessions[id]=s
 	}
-	s, ok := sessions[id]
-	if !ok {
-		s = session{}
-		s[ID] = id
-		sessions[id] = s
+	return s.clone(), nil // this copy allows concurrent session access
+}
+
+// Id returns the session ID or ""
+func (s session) Id() string {
+	if s[SESSIONID]!=nil {
+		return s[SESSIONID].(string)
 	}
-	return clone(s), nil // this copy allows concurrent session access
+	return ""
 }
 
 // Save stores the session state 
 func (s session) Save() {
 	smutex.Lock()
 	defer smutex.Unlock()
-	sessions[s[SESSIONID].(string)] = clone(s)
+	sessions[s.Id()] = s.clone()
 }
 
 // clone makes a copy of a session and returns it
-func clone(s session) session {
-	c := session{}
+func (s session) clone() session {
+	c := make(session,len(s))
 	for k, v := range s {
 		c[k] = v
 	}
 	return c
 }
 
-// sessionId gets a session id from the request
-func sessionId(r *http.Request) string {
-	return r.FormValue(SESSIONID)
-}
-
-// genSessionId generates a new session ID
-func genSessionId() (string, error) {
+// genId generates a new session ID
+func genId() (string, error) {
 	uuid := make([]byte, 16)
 	n, err := rand.Read(uuid)
 	if n != len(uuid) || err != nil {

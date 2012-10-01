@@ -459,26 +459,22 @@ function checkPassword(el) {
 <div class="data">
 <div class="CATitle">{{tr "Locally managed CAs:"}}</div>
 {{range .CAs}}
-<span class="CA"><a 
->{{.Crt.Subject.CommonName}}</a></span>
+<span class="CA">
+<a href="/edit?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a>
+</span>
 <span class="period">{{showPeriod .Crt}}</span></span>
 {{template "certNode" .Childs}}
 {{end}}
 <div class="CA"><a href="/new">+ {{tr "Add more..."}}</a></div>
 <div class="CATitle">{{tr "Externally managed CAs:"}}</div>
 {{range .Others}}
-<span class="CA"><a 
->{{.Crt.Subject.CommonName}}</a></span>
+<span class="CA"><a href="/edit">{{.Crt.Subject.CommonName}}</a></span>
 <span class="period">{{showPeriod .Crt}}</span>
 {{template "certNode" .Childs}}
 {{end}}
-<div class="CA"><a >+ {{tr "Import more..."}}</a></div>
+<div class="CA"><a href="/import">+ {{tr "Import more..."}}</a></div>
 </div>
 {{template "htmlfooter"}}
 {{end}}
 `
 )
-
-// href='{{.Url "edit" "cert" .Crt.Subject.CommonName}}'
-// href='{{.Url "edit" "cert" .Crt.Subject.CommonName}}'
-// href='{{.Url "import"}}'
