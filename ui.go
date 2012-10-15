@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -65,7 +67,7 @@ func init() {
 	templates = template.New("webcaTemplates")
 	templates.Funcs(template.FuncMap{
 		// The name "title" is what the function will be called in the template text.
-		"tr": tr, "indexOf": indexOf, "showPeriod": showPeriod,
+		"tr": tr, "indexOf": indexOf, "showPeriod": showPeriod, "qEsc": qEsc,
 	})
 	template.Must(templates.Parse(htmlTemplates))
 	template.Must(templates.Parse(jsTemplates))
@@ -76,7 +78,12 @@ func init() {
 // LoadCrt loads variables "Prfx" and "Crt" into PageSetup to point to the right 
 // CertSetup and its prefix and sets a default duration for that cert
 func (ps PageStatus) LoadCrt(arg interface{}, prfx string, defaultDuration int) string {
-	cs := arg.(*CertSetup)
+	var cs *CertSetup
+	if arg != nil {
+		cs = arg.(*CertSetup)
+	} else {
+		cs = &CertSetup{}
+	}
 	ps["Crt"] = cs
 	ps["Prfx"] = prfx
 	cs.Duration = defaultDuration
@@ -107,6 +114,11 @@ func indexOf(sa []string, index int) string {
 		return ""
 	}
 	return sa[index]
+}
+
+// qEsc escapes a query string to be laced in the URL
+func qEsc(s string, args ...interface{}) string {
+	return url.QueryEscape(fmt.Sprintf(s, args))
 }
 
 // WebCA starts the prepares and serves the WebApp 
@@ -169,6 +181,7 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.HandleFunc("/login", login)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
+	smux.Handle("/new", accessControl(newOne))
 	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
@@ -237,27 +250,60 @@ func readMailer(r *http.Request) Mailer {
 
 // index displays the index page 
 func index(w http.ResponseWriter, r *http.Request) {
-	ps := newPageStatus(r)
-	s,err:=SessionFor(w,r)
-	if err!=nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
 	}
-	ps[LOGGEDUSER]=s[LOGGEDUSER]
 	ct := LoadCertree(".")
 	ps["CAs"] = ct.roots
 	ps["Others"] = ct.foreign
-	err = templates.ExecuteTemplate(w, "index", ps)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	err := templates.ExecuteTemplate(w, "index", ps)
+	handleError(w,r,err)
+}
+
+// newOne allows the web user to generate a new certificate
+func newOne(w http.ResponseWriter, r *http.Request) {
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
 	}
+	parent := r.FormValue("parent")
+	var pcert *Cert
+	if parent != "" {
+		pc,err := loadCert(parent)
+		if handleError(w,r,err) {
+			return
+		}
+		pcert=pc
+	}
+	var err error
+	if pcert == nil {
+		ps["Title"]=tr("New CA")
+		err = templates.ExecuteTemplate(w, "ca", ps)
+	} else {
+		ps["Title"]=tr("New Certificate at %s",parent)
+		err = templates.ExecuteTemplate(w, "cert", ps)
+	}
+	handleError(w,r,err)
+}
+
+// newLoggedPage returns a page with a LOGGEDUSER attribute set to the current logged user
+func newLoggedPage(w http.ResponseWriter, r *http.Request) PageStatus {
+	s, err := SessionFor(w, r)
+	if handleError(w,r,err) {
+		return nil
+	}
+	ps := newPageStatus(r)
+	ps[LOGGEDUSER] = s[LOGGEDUSER]
+	return ps
 }
 
 // accessControl invokes handler h ONLY IF we are logged in, otherwise the login page
 func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s, err := SessionFor(w,r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		s, err := SessionFor(w, r)
+		if handleError(w,r,err) {
+			return
 		}
 		if s[LOGGEDUSER] == nil {
 			if fakedLogin {
@@ -269,9 +315,7 @@ func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
 			ps := newPageStatus(r)
 			ps[SESSIONID] = s.Id()
 			err := templates.ExecuteTemplate(w, "login", ps)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+			handleError(w,r,err)
 			return
 		}
 		h(w, r)
@@ -285,17 +329,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 	cfg := LoadConfig()
 	u := cfg.getUser(Username)
 	if u.Password != Password {
-		ps:=newPageStatus(r)
-		ps["Error"]=tr("Access Denied")
+		ps := newPageStatus(r)
+		ps["Error"] = tr("Access Denied")
 		err := templates.ExecuteTemplate(w, "login", ps)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		handleError(w,r,err)
 		return
 	} else {
-		s, err := SessionFor(w,r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		s, err := SessionFor(w, r)
+		if handleError(w,r,err) {
+			return
 		}
 		s[LOGGEDUSER] = u
 		s.Save()
@@ -310,11 +352,22 @@ func login(w http.ResponseWriter, r *http.Request) {
 // newPageStatus generates a new PageStatus including the Request
 func newPageStatus(r *http.Request) PageStatus {
 	ps := PageStatus{}
-	ps[REQUEST]=r
+	ps[REQUEST] = r
 	return ps
 }
 
 // fakeLogin fakes the login process
 func FakeLogin() {
 	fakedLogin = true
+}
+
+// handleError displays err (if not nil) on Stderr and (if possible) displays a web error page
+// it also returns true if the error was found and handled and false if err was nil
+func handleError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if err!=nil {
+		fmt.Fprintln(os.Stderr,err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return true
+	}
+	return false
 }
