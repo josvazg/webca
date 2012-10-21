@@ -55,7 +55,7 @@ WebCA Setup:
 
 {{define "htmlheader"}}
 <div class="topbar">
-<h1><img height="80px" src="/img/CASeal.png"/>WebCA</h1>
+<a href="/"><h1><img height="80px" src="/img/CASeal.png"/>WebCA</h1></a>
 <style type="text/css">
 {{template "style.css"}}
 </style>
@@ -165,8 +165,7 @@ WebCA Setup:
 {{define "certNode"}}
 <div class="indent">
 {{range .}}
-<span class="Cert"><a 
-href="/edit?cert={{qEsc .Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a></span>
+<span class="Cert">{{.Crt.Subject.CommonName}}</span>
 <span class="period">{{showPeriod .Crt}}</span>
 {{template "certNode" .Childs}}
 {{end}}
@@ -460,18 +459,18 @@ function checkPassword(el) {
 <div class="CATitle">{{tr "Local CAs:"}}</div>
 {{range .CAs}}
 <span class="CA">
-<a href="/edit?cert={{qEsc .Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a>
+{{.Crt.Subject.CommonName}}
 </span>
 <span class="period">{{showPeriod .Crt}}</span></span>
 {{template "certNode" .Childs}}
-<div class="Cert"><a href="/new?parent={{qEsc .Crt.Subject.CommonName}}"
+<div class="Cert"><a href="/cert?parent={{qEsc .Crt.Subject.CommonName}}"
      >+ {{tr "Add more Certificates to %s..." .Crt.Subject.CommonName}}</a></div>
 {{end}}
 <p/>
-<div class="CA"><a href="/new">+ {{tr "Add more CAs..."}}</a></div>
+<div class="CA"><a href="/cert">+ {{tr "Add more CAs..."}}</a></div>
 <div class="CATitle">{{tr "Externally Managed Certificates:"}}</div>
 {{range .Others}}
-<span class="CA"><a href="/edit">{{.Crt.Subject.CommonName}}</a></span>
+<span class="CA"><a href="/cert">{{.Crt.Subject.CommonName}}</a></span>
 <span class="period">{{showPeriod .Crt}}</span>
 {{template "certNode" .Childs}}
 {{end}}
@@ -480,30 +479,23 @@ function checkPassword(el) {
 {{template "htmlfooter"}}
 {{end}}
 
-{{define "ca"}}
-{{template "htmlheader" .}}
-<h2>{{.Title}}</h2>
-<table class="form">
-<tr><td class="mainlabel">{{tr "CA Name"}}:</td>
-    <td><input type="text" class="main" name="CA.CommonName" 
-                                        value="{{.CA.Name.CommonName}}"></td></tr>
-{{.LoadCrt .CA "CA" 1095}}
-{{template "certCommonFields" .}}
-</table>
-{{template "htmlfooter"}}
-{{end}}
-
 {{define "cert"}}
 {{template "htmlheader" .}}
 <h2>{{.Title}}</h2>
+<form action="/gen" method="post">
 <table class="form">
-<tr><td class="mainlabel">{{tr "Certificate Name"}}:</td>
+<input type="hidden" name="parent"/>
+<tr><td class="mainlabel">{{.CommonName}}:</td>
     <td><input type="text" class="main" name="Cert.CommonName" 
                                         value="{{.Cert.Name.CommonName}}"></td>
 </tr>
 {{.LoadCrt .Cert "Cert" 365}}
 {{template "certCommonFields" .}}
+<tr>
+<td colspan="2"><input type="submit" id="submit" name="submit" value='{{.Action}}'></td>
+</tr>
 </table>
+</form>
 {{template "htmlfooter"}}
 {{end}}
 `

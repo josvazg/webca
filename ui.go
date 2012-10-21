@@ -118,7 +118,7 @@ func indexOf(sa []string, index int) string {
 
 // qEsc escapes a query string to be laced in the URL
 func qEsc(s string, args ...interface{}) string {
-	return url.QueryEscape(fmt.Sprintf(s, args))
+	return url.QueryEscape(fmt.Sprintf(s, args...))
 }
 
 // WebCA starts the prepares and serves the WebApp 
@@ -181,7 +181,7 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.HandleFunc("/login", login)
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
-	smux.Handle("/new", accessControl(newOne))
+	smux.Handle("/cert", accessControl(cert))
 	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
@@ -261,29 +261,30 @@ func index(w http.ResponseWriter, r *http.Request) {
 	handleError(w,r,err)
 }
 
-// newOne allows the web user to generate a new certificate
-func newOne(w http.ResponseWriter, r *http.Request) {
+// cert allows the web user to generate a new certificate
+func cert(w http.ResponseWriter, r *http.Request) {
 	ps := newLoggedPage(w, r)
 	if ps == nil {
 		return
 	}
 	parent := r.FormValue("parent")
-	var pcert *Cert
 	if parent != "" {
 		pc,err := loadCert(parent)
 		if handleError(w,r,err) {
 			return
 		}
-		pcert=pc
-	}
-	var err error
-	if pcert == nil {
-		ps["Title"]=tr("New CA")
-		err = templates.ExecuteTemplate(w, "ca", ps)
-	} else {
+		pc.Crt.Subject.CommonName=""
+		ps["parent"]=parent
+		ps["Cert"]=&CertSetup{Name: pc.Crt.Subject}
 		ps["Title"]=tr("New Certificate at %s",parent)
-		err = templates.ExecuteTemplate(w, "cert", ps)
+		ps["CommonName"]=tr("Certificate Name")
+		ps["Action"]=tr("Generate Certificate")
+	} else {
+		ps["Title"]=tr("New CA")
+		ps["CommonName"]=tr("CA Name")
+		ps["Action"]=tr("Generate CA")
 	}
+	err := templates.ExecuteTemplate(w, "cert", ps)
 	handleError(w,r,err)
 }
 
