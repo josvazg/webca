@@ -182,6 +182,7 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
 	smux.Handle("/cert", accessControl(cert))
+	smux.Handle("/gen", accessControl(gen))
 	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
@@ -261,6 +262,19 @@ func index(w http.ResponseWriter, r *http.Request) {
 	handleError(w,r,err)
 }
 
+// setCertPageTexts sets cert's page texts for CA or Certs
+func setCertPageTexts(ps PageStatus, parent string) {
+	if parent!="" {
+		ps["Title"]=tr("New Certificate at %s",parent)
+		ps["CommonName"]=tr("Certificate Name")
+		ps["Action"]=tr("Generate Certificate")
+	} else {
+		ps["Title"]=tr("New CA")
+		ps["CommonName"]=tr("CA Name")
+		ps["Action"]=tr("Generate CA")
+	}
+}
+
 // cert allows the web user to generate a new certificate
 func cert(w http.ResponseWriter, r *http.Request) {
 	ps := newLoggedPage(w, r)
@@ -276,16 +290,47 @@ func cert(w http.ResponseWriter, r *http.Request) {
 		pc.Crt.Subject.CommonName=""
 		ps["parent"]=parent
 		ps["Cert"]=&CertSetup{Name: pc.Crt.Subject}
-		ps["Title"]=tr("New Certificate at %s",parent)
-		ps["CommonName"]=tr("Certificate Name")
-		ps["Action"]=tr("Generate Certificate")
-	} else {
-		ps["Title"]=tr("New CA")
-		ps["CommonName"]=tr("CA Name")
-		ps["Action"]=tr("Generate CA")
 	}
+	setCertPageTexts(ps,parent)
 	err := templates.ExecuteTemplate(w, "cert", ps)
 	handleError(w,r,err)
+}
+
+// gen will generate a certificate with the given request data
+func gen(w http.ResponseWriter, r *http.Request) {
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
+	}
+	parent := r.FormValue("parent")
+	cs,err:=readCertSetup("Cert",r)
+	handleError(w,r,err)
+	if cs.Name.CommonName=="" {
+		ps["Error"]=tr("Can't create a certificate with no name!")
+		ps["Cert"]=cs
+		ps["parent"]=parent
+		setCertPageTexts(ps,parent)
+		err := templates.ExecuteTemplate(w, "cert", ps)
+		handleError(w,r,err)
+		return
+	}
+	fmt.Println("parent=",parent)
+	if parent != "" {
+		cacert, err:=loadCert(parent)
+		if handleError(w,r,err) {
+			return
+		}
+		_, err = GenCert(cacert, cs.Name.CommonName, cs.Duration)
+		if handleError(w, r, err) {
+			return
+		}
+	} else {
+		_, err := GenCACert(cs.Name, cs.Duration)
+		if handleError(w, r, err) {
+			return
+		}
+	}
+	http.Redirect(w, r, "/", 302)
 }
 
 // newLoggedPage returns a page with a LOGGEDUSER attribute set to the current logged user

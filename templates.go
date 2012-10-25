@@ -464,7 +464,7 @@ function checkPassword(el) {
 <span class="period">{{showPeriod .Crt}}</span></span>
 {{template "certNode" .Childs}}
 <div class="Cert"><a href="/cert?parent={{qEsc .Crt.Subject.CommonName}}"
-     >+ {{tr "Add more Certificates to %s..." .Crt.Subject.CommonName}}</a></div>
+     >+ {{tr "Add more Certificates to %s..." .Crt.Subject.CommonName}}</a></div><br/>
 {{end}}
 <p/>
 <div class="CA"><a href="/cert">+ {{tr "Add more CAs..."}}</a></div>
@@ -484,7 +484,12 @@ function checkPassword(el) {
 <h2>{{.Title}}</h2>
 <form action="/gen" method="post">
 <table class="form">
-<input type="hidden" name="parent"/>
+<input type="hidden" name="parent" value="{{.parent}}"/>
+{{if .Error}}
+<div class="notice" id="notice">
+<label class="notice" id="noticeText">{{.Error}}<label>
+</div>
+{{end}}
 <tr><td class="mainlabel">{{.CommonName}}:</td>
     <td><input type="text" class="main" name="Cert.CommonName" 
                                         value="{{.Cert.Name.CommonName}}"></td>
