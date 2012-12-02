@@ -183,6 +183,7 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.Handle("/favicon.ico", http.FileServer(http.Dir("img")))
 	smux.Handle("/cert", accessControl(cert))
 	smux.Handle("/gen", accessControl(gen))
+	smux.Handle("/certControl", accessControl(certControl))
 	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
@@ -331,6 +332,25 @@ func gen(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, "/", 302)
+}
+
+// certControl allows the web user to manage a certificate
+func certControl(w http.ResponseWriter, r *http.Request) {
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
+	}
+	cert := r.FormValue("cert")
+	if cert != "" {
+		c,err := loadCert(cert)
+		if handleError(w,r,err) {
+			return
+		}
+		fmt.Println("c=",c)
+		ps["Cert"]=c
+	}
+	err := templates.ExecuteTemplate(w, "certControl", ps)
+	handleError(w,r,err)
 }
 
 // newLoggedPage returns a page with a LOGGEDUSER attribute set to the current logged user

@@ -165,7 +165,9 @@ WebCA Setup:
 {{define "certNode"}}
 <div class="indent">
 {{range .}}
-<span class="Cert">{{.Crt.Subject.CommonName}}</span>
+<span class="Cert">
+<a href="certControl?cert={{.Crt.Subject.CommonName}}">{{.Crt.Subject.CommonName}}</a>
+</span>
 <span class="period">{{showPeriod .Crt}}</span>
 {{template "certNode" .Childs}}
 {{end}}
@@ -458,9 +460,9 @@ function checkPassword(el) {
 <div class="data">
 <div class="CATitle">{{tr "Local CAs:"}}</div>
 {{range .CAs}}
-<span class="CA">
+<a href="/certControl?cert={{.Crt.Subject.CommonName}}"><span class="CA">
 {{.Crt.Subject.CommonName}}
-</span>
+</span></a>
 <span class="period">{{showPeriod .Crt}}</span></span>
 {{template "certNode" .Childs}}
 <div class="Cert"><a href="/cert?parent={{qEsc .Crt.Subject.CommonName}}"
@@ -498,6 +500,35 @@ function checkPassword(el) {
 {{template "certCommonFields" .}}
 <tr>
 <td colspan="2"><input type="submit" id="submit" name="submit" value='{{.Action}}'></td>
+</tr>
+</table>
+</form>
+{{template "htmlfooter"}}
+{{end}}
+
+{{define "certControl"}}
+{{template "htmlheader" .}}
+<h2>{{.Title}}</h2>
+<form action="/ctrl" method="post">
+<table class="form">
+<tr><td colspan="4" class="bigger">{{.Cert.Crt.Subject.CommonName}}</td></tr>
+<tr><td colspan="4"><span class="period">{{showPeriod .Cert.Crt}}</span></td></tr>
+{{with .Cert.Crt.Subject}}
+<tr><td colspan="4">{{indexOf .OrganizationalUnit 0}}</td></tr>
+<tr><td colspan="4">{{indexOf .Organization 0}}</td></tr>
+<tr><td colspan="4">{{indexOf .StreetAddress 0}}</td></tr>
+<tr><td colspan="4">{{indexOf .PostalCode 0}}, {{indexOf .Locality 0}} ({{indexOf .Province 0}})
+ {{indexOf .Country 0}}</td></tr>
+{{end}}
+<tr>
+<td><a href="/download" title='{{tr "Download"}}'>
+<img width="64px" src="/img/download.png"/></a></td>
+<td><a href="/renew" title='{{tr "Renew"}}'>
+<img width="64px" src="/img/renew.png"/></a></td>
+<td><a href="/clone" title='{{tr "Clone"}}'>
+<img width="64px" src="/img/copy.png"/></a></td>
+<td><a href="/delete" title='{{tr "Delete"}}'>
+<img width="64px" src="/img/delete.png"/></a></td>
 </tr>
 </table>
 </form>
