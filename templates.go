@@ -74,7 +74,7 @@ WebCA Setup:
 <div class="footer">
 	<a href="http://github.com/josvazg/webca">Hosted on GitHub</a><br/>
 	<a rel="license" href="http://creativecommons.org/licenses/by/3.0/"><img 
-       alt="Licencia Creative Commons" style="border-width:0" src="img/ccby.png" />
+       alt="Licencia Creative Commons" style="border-width:0" src="/img/ccby.png" />
     </a><br /><a rel="license" href="http://creativecommons.org/licenses/by/3.0/">
     Creative Commons Attribution 3.0 License</a>.
 </div>
@@ -519,16 +519,28 @@ function checkPassword(el) {
 <tr><td colspan="4">{{indexOf .StreetAddress 0}}</td></tr>
 <tr><td colspan="4">{{indexOf .PostalCode 0}}, {{indexOf .Locality 0}} ({{indexOf .Province 0}})
  {{indexOf .Country 0}}</td></tr>
-{{end}}
 <tr>
-<td><a href="/download" title='{{tr "Download"}}'>
+<td><a href="/cert/{{.CommonName}}.pem" title='{{tr "Download"}}'>
 <img width="64px" src="/img/download.png"/></a></td>
-<td><a href="/renew" title='{{tr "Renew"}}'>
+<td><a href="/renew?cert={{.CommonName}}" title='{{tr "Renew"}}'>
 <img width="64px" src="/img/renew.png"/></a></td>
-<td><a href="/clone" title='{{tr "Clone"}}'>
+<td><a href="/clone?cert={{.CommonName}}" title='{{tr "Clone"}}'>
 <img width="64px" src="/img/copy.png"/></a></td>
-<td><a href="/delete" title='{{tr "Delete"}}'>
+{{end}}
+{{if .Cert.Childs}}
+{{with .Cert.Crt.Subject}}
+<td>
+<img width="64px" src="/img/delete.png" style="opacity:0.4; filter:alpha(opacity=40);" 
+     title='{{tr "Can't delete Certificate with Children Certificates"}}'/>
+</td>
+{{end}}
+{{else}}
+{{with .Cert.Crt.Subject}}
+<td><a href="/del?cert={{.CommonName}}" title='{{tr "Delete"}}'
+       onclick="return confirm('{{tr "Are you sure you want to delete this Certificate?"}}')">
 <img width="64px" src="/img/delete.png"/></a></td>
+{{end}}
+{{end}}
 </tr>
 </table>
 </form>

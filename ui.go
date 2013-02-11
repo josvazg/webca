@@ -184,6 +184,10 @@ func PrepareServer(smux *http.ServeMux) address {
 	smux.Handle("/cert", accessControl(cert))
 	smux.Handle("/gen", accessControl(gen))
 	smux.Handle("/certControl", accessControl(certControl))
+	smux.Handle("/cert/", authCertServer("/cert/", http.Dir(".")))
+	smux.Handle("/renew", accessControl(renew))
+	smux.Handle("/clone", accessControl(clone))
+	smux.Handle("/del", accessControl(del))
 	return address{webCAURL(cfg), certFile(cfg.getWebCert()), keyFile(cfg.getWebCert()), true}
 }
 
@@ -191,6 +195,11 @@ func PrepareServer(smux *http.ServeMux) address {
 func webCAURL(cfg *config) string {
 	certName := cfg.getWebCert().Crt.Subject.CommonName
 	return fmt.Sprintf("%s:%v", certName, PORT+portFix)
+}
+
+// authCertServer returns a authorized certServer for downloading certificates
+func authCertServer(prefix string, dir http.Dir) http.Handler {
+	return accessControlHandler(http.StripPrefix(prefix, certServer(dir)))
 }
 
 // certServer returns a certificate server filtering the downloadable cert files properly
@@ -256,23 +265,23 @@ func index(w http.ResponseWriter, r *http.Request) {
 	if ps == nil {
 		return
 	}
-	ct := LoadCertree(".")
+	ct := ListCerts()
 	ps["CAs"] = ct.roots
 	ps["Others"] = ct.foreign
 	err := templates.ExecuteTemplate(w, "index", ps)
-	handleError(w,r,err)
+	handleError(w, r, err)
 }
 
 // setCertPageTexts sets cert's page texts for CA or Certs
 func setCertPageTexts(ps PageStatus, parent string) {
-	if parent!="" {
-		ps["Title"]=tr("New Certificate at %s",parent)
-		ps["CommonName"]=tr("Certificate Name")
-		ps["Action"]=tr("Generate Certificate")
+	if parent != "" {
+		ps["Title"] = tr("New Certificate at %s", parent)
+		ps["CommonName"] = tr("Certificate Name")
+		ps["Action"] = tr("Generate Certificate")
 	} else {
-		ps["Title"]=tr("New CA")
-		ps["CommonName"]=tr("CA Name")
-		ps["Action"]=tr("Generate CA")
+		ps["Title"] = tr("New CA")
+		ps["CommonName"] = tr("CA Name")
+		ps["Action"] = tr("Generate CA")
 	}
 }
 
@@ -284,17 +293,17 @@ func cert(w http.ResponseWriter, r *http.Request) {
 	}
 	parent := r.FormValue("parent")
 	if parent != "" {
-		pc,err := loadCert(parent)
-		if handleError(w,r,err) {
+		pc, err := FindCertOrFail(parent)
+		if handleError(w, r, err) {
 			return
 		}
-		pc.Crt.Subject.CommonName=""
-		ps["parent"]=parent
-		ps["Cert"]=&CertSetup{Name: pc.Crt.Subject}
+		pc.Crt.Subject.CommonName = ""
+		ps["parent"] = parent
+		ps["Cert"] = &CertSetup{Name: pc.Crt.Subject}
 	}
-	setCertPageTexts(ps,parent)
+	setCertPageTexts(ps, parent)
 	err := templates.ExecuteTemplate(w, "cert", ps)
-	handleError(w,r,err)
+	handleError(w, r, err)
 }
 
 // gen will generate a certificate with the given request data
@@ -304,21 +313,20 @@ func gen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parent := r.FormValue("parent")
-	cs,err:=readCertSetup("Cert",r)
-	handleError(w,r,err)
-	if cs.Name.CommonName=="" {
-		ps["Error"]=tr("Can't create a certificate with no name!")
-		ps["Cert"]=cs
-		ps["parent"]=parent
-		setCertPageTexts(ps,parent)
+	cs, err := readCertSetup("Cert", r)
+	handleError(w, r, err)
+	if cs.Name.CommonName == "" {
+		ps["Error"] = tr("Can't create a certificate with no name!")
+		ps["Cert"] = cs
+		ps["parent"] = parent
+		setCertPageTexts(ps, parent)
 		err := templates.ExecuteTemplate(w, "cert", ps)
-		handleError(w,r,err)
+		handleError(w, r, err)
 		return
 	}
-	fmt.Println("parent=",parent)
 	if parent != "" {
-		cacert, err:=loadCert(parent)
-		if handleError(w,r,err) {
+		cacert := FindCert(parent)
+		if handleError(w, r, err) {
 			return
 		}
 		_, err = GenCert(cacert, cs.Name.CommonName, cs.Duration)
@@ -342,21 +350,94 @@ func certControl(w http.ResponseWriter, r *http.Request) {
 	}
 	cert := r.FormValue("cert")
 	if cert != "" {
-		c,err := loadCert(cert)
-		if handleError(w,r,err) {
+		c, err := FindCertOrFail(cert)
+		if handleError(w, r, err) {
 			return
 		}
-		fmt.Println("c=",c)
-		ps["Cert"]=c
+		ps["Cert"] = c
 	}
 	err := templates.ExecuteTemplate(w, "certControl", ps)
-	handleError(w,r,err)
+	handleError(w, r, err)
+}
+
+// renew the certificate requested
+func renew(w http.ResponseWriter, r *http.Request) {
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
+	}
+	cert := r.FormValue("cert")
+	if cert != "" {
+		c, err := FindCertOrFail(cert)
+		if handleError(w, r, err) {
+			return
+		}
+		c, err = RenewCert(c)
+		if handleError(w, r, err) {
+			return
+		}
+		ps["Cert"] = c
+	}
+	err := templates.ExecuteTemplate(w, "certControl", ps)
+	handleError(w, r, err)
+}
+
+// clone the certificate requested
+func clone(w http.ResponseWriter, r *http.Request) {
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
+	}
+	cert := r.FormValue("cert")
+	var err error
+	if cert != "" {
+		c, err := FindCertOrFail(cert)
+		if handleError(w, r, err) {
+			return
+		}
+		c = CloneCert(c, tr("clone of %v", c.Crt.Subject.CommonName))
+		ps["Cert"] = c
+		ps["parent"] = c.Parent.Crt.Subject.CommonName
+		ps["Cert"] = &CertSetup{Name: c.Crt.Subject}
+		setCertPageTexts(ps, c.Parent.Crt.Subject.CommonName)
+		err = templates.ExecuteTemplate(w, "cert", ps)
+	} else {
+		err = fmt.Errorf("%s", tr("Nothing to clone!"))
+	}
+	handleError(w, r, err)
+}
+
+// del will try to remove the requested certificate if possible
+func del(w http.ResponseWriter, r *http.Request) {
+	ps := newLoggedPage(w, r)
+	if ps == nil {
+		return
+	}
+	cert := r.FormValue("cert")
+	var err error
+	if cert != "" {
+		c, err := FindCertOrFail(cert)
+		if handleError(w, r, err) {
+			return
+		}
+		ps["Cert"] = c
+		if c.Childs == nil || len(c.Childs) == 0 {
+			DeleteCert(c)
+			index(w, r)
+			return
+		} else if c.Crt.IsCA {
+			ps["PendingConfirmation"] = true
+			ps["Childs"] = c.Childs
+		}
+	}
+	err = templates.ExecuteTemplate(w, "certControl", ps)
+	handleError(w, r, err)
 }
 
 // newLoggedPage returns a page with a LOGGEDUSER attribute set to the current logged user
 func newLoggedPage(w http.ResponseWriter, r *http.Request) PageStatus {
 	s, err := SessionFor(w, r)
-	if handleError(w,r,err) {
+	if handleError(w, r, err) {
 		return nil
 	}
 	ps := newPageStatus(r)
@@ -365,26 +446,31 @@ func newLoggedPage(w http.ResponseWriter, r *http.Request) PageStatus {
 }
 
 // accessControl invokes handler h ONLY IF we are logged in, otherwise the login page
-func accessControl(h func(http.ResponseWriter, *http.Request)) http.Handler {
+func accessControl(f func(w http.ResponseWriter, r *http.Request)) http.Handler {
+	return accessControlHandler(http.HandlerFunc(f))
+}
+
+// accessControlHandler invokes handler h ONLY IF we are logged in, otherwise the login page
+func accessControlHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s, err := SessionFor(w, r)
-		if handleError(w,r,err) {
+		if handleError(w, r, err) {
 			return
 		}
 		if s[LOGGEDUSER] == nil {
 			if fakedLogin {
 				s[LOGGEDUSER] = User{"fuser", "Faked User", "****", "fuser@fuser.com"}
 				s.Save()
-				h(w, r)
+				h.ServeHTTP(w, r)
 				return
 			}
 			ps := newPageStatus(r)
 			ps[SESSIONID] = s.Id()
 			err := templates.ExecuteTemplate(w, "login", ps)
-			handleError(w,r,err)
+			handleError(w, r, err)
 			return
 		}
-		h(w, r)
+		h.ServeHTTP(w, r)
 	})
 }
 
@@ -398,11 +484,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 		ps := newPageStatus(r)
 		ps["Error"] = tr("Access Denied")
 		err := templates.ExecuteTemplate(w, "login", ps)
-		handleError(w,r,err)
+		handleError(w, r, err)
 		return
 	} else {
 		s, err := SessionFor(w, r)
-		if handleError(w,r,err) {
+		if handleError(w, r, err) {
 			return
 		}
 		s[LOGGEDUSER] = u
@@ -427,11 +513,20 @@ func FakeLogin() {
 	fakedLogin = true
 }
 
+// FindCertOrFail fainds the certifcate or fails with an error
+func FindCertOrFail(certname string) (*Cert, error) {
+	cert := FindCert(certname)
+	if cert != nil {
+		return cert, nil
+	}
+	return nil, fmt.Errorf(tr("%v certificate not found!", cert))
+}
+
 // handleError displays err (if not nil) on Stderr and (if possible) displays a web error page
 // it also returns true if the error was found and handled and false if err was nil
 func handleError(w http.ResponseWriter, r *http.Request, err error) bool {
-	if err!=nil {
-		fmt.Fprintln(os.Stderr,err.Error())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return true
 	}

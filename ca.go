@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,22 +38,97 @@ type Certree struct {
 	foreign []*Cert
 }
 
+// certree in memory
+var certree *Certree
+
+// certree access lock
+var scerts sync.RWMutex
+
 // GenCACert generates a CA Certificate, that is a self signed certificate
 func GenCACert(name pkix.Name, days int) (*Cert, error) {
-	return genCert(nil, name, days)
+	cert, err := genCert(nil, name, days)
+	if err != nil {
+		return nil, err
+	}
+	certree = nil // forces full reload later
+	return cert, nil
 }
 
 // CenCert generates a Certificate signed by another certificate
-func GenCert(parent *Cert, cert string, days int) (*Cert, error) {
+func GenCert(parent *Cert, certname string, days int) (*Cert, error) {
 	name := copyName(parent.Crt.Subject)
-	name.CommonName = cert
-	return genCert(parent, name, days)
+	name.CommonName = certname
+	cert, err := genCert(parent, name, days)
+	if err != nil {
+		return nil, err
+	}
+	certree = nil // forces full reload later
+	return cert, nil
 }
 
 // RenewCert renews the given certificate for the same duration as before from now
 func RenewCert(cert *Cert) (*Cert, error) {
 	days := int(cert.Crt.NotAfter.Sub(cert.Crt.NotBefore).Hours() / 24)
-	return genCert(cert.Parent, cert.Crt.Subject, days)
+	cert, err := genCert(cert.Parent, cert.Crt.Subject, days)
+	if err != nil {
+		return nil, err
+	}
+	certree = nil // forces full reload later
+	return cert, nil
+}
+
+// ListCerts returns the current Certree
+func ListCerts() *Certree {
+	return autoload()
+}
+
+// FindCert finds a certificate by name
+func FindCert(certname string) *Cert {
+	autoload()
+	scerts.RLock()
+	defer scerts.RUnlock()
+	return certree.names[certname]
+}
+
+// ReadCert reads the Certificate Contents
+func ReadCert(cert *Cert) ([]byte, error) {
+	return ioutil.ReadFile(certFile(*cert))
+}
+
+// ReadCertKey reads the Certificate Key contents
+func ReadCertKey(cert *Cert) ([]byte, error) {
+	return ioutil.ReadFile(keyFile(*cert))
+}
+
+// CloneCert generates a clone of the original certificate with a new name
+func CloneCert(cert *Cert, newname string) *Cert {
+	c := &Cert{Crt: &x509.Certificate{Subject: copyName(cert.Crt.Subject)}, Parent: cert.Parent}
+	c.Crt.Subject.CommonName = newname
+	return c
+}
+
+// DeleteCert deletes a certificate
+func DeleteCert(cert *Cert) bool {
+	scerts.Lock()
+	defer scerts.Unlock()
+	if err := os.Remove(certFile(*cert)); err != nil {
+		return false
+	}
+	if err := os.Remove(keyFile(*cert)); err != nil {
+		return false
+	}
+	certree = nil // forces full reload later
+	return true
+}
+
+// autoload will autoload certree
+func autoload() *Certree {
+	scerts.Lock()
+	defer scerts.Unlock()
+	if certree == nil {
+		certree = loadCertree(".")
+	}
+	return certree
 }
 
 // copyName generates a copy of the given Certificate name
@@ -147,8 +223,8 @@ func genCert(p *Cert, name pkix.Name, days int) (*Cert, error) {
 	return t, nil
 }
 
-// loadCert loads a Cert and Key pair from disk .pem files
-func loadCert(name string) (*Cert, error) {
+// readCert loads a Cert and Key pair from disk .pem files
+func readCert(name string) (*Cert, error) {
 	cert := Cert{}
 	kname := name
 	if strings.HasSuffix(kname, CERT_SUFFIX) {
@@ -192,13 +268,13 @@ func loadCert(name string) (*Cert, error) {
 }
 
 // NewCertree generates an empty Certree
-func NewCertree() *Certree {
+func newCertree() *Certree {
 	return &Certree{make(map[string]*Cert), make([]*Cert, 0), make([]*Cert, 0)}
 }
 
-// LoadCertree will load all found .pem certs and keys on a Certree
-func LoadCertree(dir string) *Certree {
-	ct := NewCertree()
+// loadCertree will load all found .pem certs and keys on a Certree
+func loadCertree(dir string) *Certree {
+	ct := newCertree()
 	fi, err := os.Lstat(dir)
 	if err != nil {
 		log.Printf("(Warning) Failed to check path "+dir+":", err)
@@ -218,8 +294,7 @@ func LoadCertree(dir string) *Certree {
 		for _, fi := range fis {
 			if !fi.IsDir() && strings.HasSuffix(fi.Name(), CERT_SUFFIX) &&
 				!strings.HasSuffix(fi.Name(), KEY_SUFFIX) {
-				if crt, err := loadCert(fi.Name()); err == nil {
-
+				if crt, err := readCert(fi.Name()); err == nil {
 					ct.add(crt)
 				} else {
 					log.Printf("(Warning) %s", err)
