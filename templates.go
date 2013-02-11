@@ -470,6 +470,7 @@ function checkPassword(el) {
 {{end}}
 <p/>
 <div class="CA"><a href="/cert">+ {{tr "Add more CAs..."}}</a></div>
+<!--
 <div class="CATitle">{{tr "Externally Managed Certificates:"}}</div>
 {{range .Others}}
 <span class="CA"><a href="/cert">{{.Crt.Subject.CommonName}}</a></span>
@@ -478,6 +479,7 @@ function checkPassword(el) {
 {{end}}
 <div class="CA"><a href="/import">+ {{tr "Import more..."}}</a></div>
 </div>
+-->
 {{template "htmlfooter"}}
 {{end}}
 
