@@ -48,26 +48,26 @@ When the user access the correct app URL, it is presented with a small form aski
 
 Once the setup password is provided correctly the user is presented with the WebCA Setup Form. This form will ask for the following information:
 
-- *User name: admin  [type: name; no spaces, a-z,'_' and numbers]
-- User display name  [type: text]
-- *Password          [type: text]
-- *Password confirm
+1. User details
+   - __User name__: admin  [type: name; no spaces, a-z,'_' and numbers]
+   - User display name:  [type: text]
+   - __Password__:       [type: text]
+   - __Password confirm__:
+   - Email:              [type: email]
 
-- Email              [type: email]
-- Email Password     [type: text]
-- Email Server URL   [type: url]
+2. Certificate Authority
+   - __Name__:          [type: name]
+   - Address: (Street, Postal Code, Locality, Province, Country)  [type: texts]
+   - Org. Unit:         [type: text]
+   - __Organization__:	 [type: text]
+   - __Duration in Days__: (1825)      [type: DropDown/HTML Select integer representing days]
 
-- *CA Name:          [type: name]
-- Address: (Street, Postal Code, Locality, Province, Country)  [type: texts]
-- Org. Unit:         [type: text]
-- *Organization:	 [type: text]
-- *Duration in Days: (1825)      [type: 0<integer<65536]
+3. Server Certificate
+   - __Server Name__: ("same as the URL, if it's NOT an IP address")   [type: name]
+   - Option to change the Address, Org. Unit and Org. to a different value from the CA.
+   - __Server Cert duration in Days__: (365)   [type: DropDown/HTML Select integer in days]
 
-- *Server Cert Name: (<same as the URL, if it's NOT an IP address>)   [type: name]
-- Option to change the Address, Org. Unit and Org. to a different value from the CA.
-- *Server Cert duration in Days: (365)   [type: integer]
-
-Fields with a value mean the user can accept that default value or change it. And fields with an asterisk (*) are mandatory. Fields must be correct for their type.
+Fields with a value mean the user can accept that default value or change it. And bold fields are mandatory. Fields must be correct for their type.
 
 Once the from is correctly filled questions are answered, the user will be able to review all of them and choose to re-edit or confirm and end the setup. Only the first user can complete the setup, the other will get a warning and the transition page...
 
@@ -75,20 +75,153 @@ The transition page comes just after the setup is completed. It advertises the a
 
 When entering the configured application the user gets classic login page (login/password+submit). The setup key is long forgotten, so the user needs to use the password chosen in the setup form.
 
-The configured app main page is a list/tree alphabetically ordered CAs with their signed certs, also in alphabetical order. For example:
+The configured app main page is a list/tree alphabetically ordered CAs with their signed certs, also in alphabetical order. A main page layout example is:
 
-- CA1
-  - server0.example.com
-  - server1.example.com
-- CA2
-  - server2.example.com
-  - server4.example.com
-  - server5.example.com
-- CA3
-  - someotherserver.someotherdomain.com
+																(Settings)
+	(+CA)
+			- (CA1) Expiration date (+)
+  				- (server0.example.com) Exp. date
+  				- (server1.example.com) Exp. date
+			- (CA2) (Expiration date) (+)
+				- (server2.example.com) Exp. date
+				- (server4.example.com) Exp. date
+				- (server5.example.com) Exp. date
+			- (CA3) (Expiration date) (+)
+				- (someotherserver.someotherdomain.com) Exp. date
 
-Clicking on the listed CAs and cert you can edit or delete them. There is a link to create more CAs and a link within each CA to add more certs to it. On a side, you can reconfigure other settings.
+* Clicking on the listed items you can edit or delete certificates. 
+* Links represented here by (+CA) & (+) allow to create more CAs or certs into a CA. 
+* Email notifications and user Account details can also be reconfigured using the links in the upper right area of the page.
 
+The use cases, that will be explained in detail later, are:
+
+* Create a new CA
+* Create a new Cert within (signed by) an existing CA
+* Edit (Download+Renew+Delete+Clone) a CA or Certificate
+* Settings
+
+Nevertheless the philosophy of this webapp is that you expend a few minutes installing and configuring it the first time, and later you just forget it is there till there is:
+1. The need to create or change certificate.
+2. A notification email gets to you cause a Certificate or CA is about to expire.
+
+Fire and forget!... I mean, configure and forget!
+
+
+Creating a new CA
+=================
+
+When clicking on the main page link to create a new CA, (+CA), the CA creation form appears. Its layout is something like this:
+
+	New Certificate Authority...
+
+					[Possible notice]
+
+			Name:
+			Address: (Street, Postal Code, Locality, Province, Country)
+			Org. Unit:
+            Organization:
+   			Duration in Days: (1825)
+
+   			(SUBMIT BUTTON)
+
+
+1. The user will fill the form fields
+2. When all fields are correct, she can click the submit button to create that CA
+3. The CA is created and the page is reloaded
+4. If there was an error creating the CA, the user gets back to the creating page and the error is notified as yellow post-it like notice, just above the main central form. Otherwise the user navigates to the CA edit page.
+
+
+
+
+Creating a new Certificate
+==========================
+
+When clicking on the main page link to create a new Cert, (+), the Cert creation form appears. Its layout is something like this:
+
+	New Certificate for Certification Authority CA2...
+
+					[Possible notice]
+
+			Name:
+			(Details...)
+   			Duration in Days: (365)
+
+   			(SUBMIT BUTTON)
+
+The Address, Org. Unit and Organization details are copied from the signing CA (in this case CA2) and can only be viewed and edited by clicking on Details. Apart from that it works just like the CA creation form:
+
+1. The user will fill the form fields
+2. When all fields are correct, she can click the submit button to create that Cert
+3. The Certificate is created and the page is reloaded
+4. If there was an error creating the Certificate, the user gets back to the creating page and the error is notified as yellow post-it like notice, just above the main central form. Otherwise the user navigates to the Certificate edit page.
+
+
+Editing a CA or Certificate
+===========================
+
+When selecting a CA or Certificate on the main page, or when they've just been created, the user navigates to the certificate editing page. It looks something like this:
+
+	Edit Certificate server4.example.com from CA2...
+	(or "Edit Certificate Authority CA2...)
+
+	(<-Back to main page)
+
+					[Possible notice]
+
+			Name 	Expiration Date
+			Street, Postal Code, Locality, Province, Country
+			Org. Unit	Organization
+   			Duration in Days
+
+   			(DOWNLOAD KEY) (DOWNLOAD CERT) (RENEW) (CLONE) [(DELETE)]
+
+1. The Certificate details are presented to the user (this is NOT a form)
+2. Below them there are 5 links for each of the operations allowed on the Certificate or CA
+3. There is also a (<- Back to main page) link to get back to the main page
+
+> Any error will be displayed as a notice
+
+* (DOWNLOAD KEY) downloads the Certificate's private key in PEM format
+* (DOWNLOAD CERT) downloads the Certificate in PEM format
+* (RENEW) reloads the edit page after renewing the certificate, changing the expiration date
+* (CLONE) loads the create CA/Certificate page with currents certificate naming data
+* (DELETE) after user confirmation, removes the Certificate and loads the main page
+
+> The (DELETE) button is only shown in Certificates and empty CAs, those that currently have NO signed certificates
+
+
+Settings
+========
+
+Main page's (Settings) link loads the account and notifications form:
+
+	Email Notification Settings...
+
+	(<-Back to main page)
+
+					[Possible notice]
+
+			User Name:
+			Display Name:
+			Email:
+			Password:
+			Password confirm:
+
+			Sender Email:
+			Email Password:
+			Email Server URL:
+			Days before expiration notice:
+			Other email recipients:
+			[X] Auto-renew
+
+   			(SUBMIT BUTTON)
+
+1. Once the form is correctly filled, the user can submit it
+2. The account & email settings are saved and re-applied
+
+> Any error will be displayed as a notice
+
+The user's email and the additional recipients get a notification a configurable number of days before the its expiration date. The Certificate can even get renewed at the same time the email notification is sent, if the user selected auto-renew.
 
 
 
