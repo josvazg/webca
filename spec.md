@@ -22,8 +22,6 @@ But, hey, anyway she has lots of other things to do apart from keeping track of 
 Non Goals
 =========
 
-Webca es a small one-user app. It will not support multiple user logins. There will be one user in charge for the certificates.
-
 Webca will have few features. Its goal is to provide simple fast & pain-free certificate management.
 
 
